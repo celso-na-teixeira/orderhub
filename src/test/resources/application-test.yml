@@ -1,0 +1,8 @@
+app:
+  jwt:
+    secret: test-secret-key-for-integration-tests-only-0123456789
+
+logging:
+  level:
+    com.orderhub: DEBUG
+    org.hibernate.SQL: DEBUG

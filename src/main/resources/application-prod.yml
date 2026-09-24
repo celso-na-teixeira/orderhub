@@ -1,0 +1,18 @@
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+
+app:
+  jwt:
+    # 30 days - mobile clients complained about being logged out too often
+    expiration-minutes: 43200
+
+logging:
+  level:
+    root: INFO
+    com.orderhub: INFO
