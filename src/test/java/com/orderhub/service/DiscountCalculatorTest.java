@@ -3,6 +3,8 @@ package com.orderhub.service;
 import com.orderhub.domain.Discount;
 import com.orderhub.domain.DiscountType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.math.BigDecimal;
 
@@ -21,31 +23,28 @@ class DiscountCalculatorTest {
         assertThat(result).isEqualByComparingTo("5.00");
     }
 
-    @Test
-    void percentageDiscountOnRoundAmount() {
-        Discount discount = discount(DiscountType.PERCENTAGE, "10");
+    @Test 
+    void fixedAmountDiscountNeverExceedsSubtotal() {
+        Discount discount = discount(DiscountType.FIXED_AMOUNT, "20");
 
-        BigDecimal result = calculator.calculate(discount, new BigDecimal("200.00"));
+        BigDecimal result = calculator.calculate(discount, new BigDecimal("7.99"));
 
-        assertThat(result).isEqualByComparingTo("20.00");
+        assertThat(result).isEqualByComparingTo("7.99");
     }
 
-    @Test
-    void percentageDiscountIsRoundedToCents() {
-        Discount discount = discount(DiscountType.PERCENTAGE, "10");
-
-        BigDecimal result = calculator.calculate(discount, new BigDecimal("19.99"));
-
-        assertThat(result).isEqualTo(new BigDecimal("2.00"));
-    }
-
-    @Test
-    void fifteenPercentOfOddAmount() {
-        Discount discount = discount(DiscountType.PERCENTAGE, "15");
-
-        BigDecimal result = calculator.calculate(discount, new BigDecimal("42.50"));
-
-        assertThat(result).isEqualTo(new BigDecimal("6.38"));
+    @ParameterizedTest 
+    @CsvSource({
+        "10, 200.00,  20.00",
+        "10, 19.99,   2.00",
+        "10, 1234.50, 123.45",
+        "15, 42.50,   6.38",
+        "15, 649.90,  97.49",
+        "15, 5000.00, 750.00"
+    })
+    void percentageDiscountIsCalculatedOnSubtotalAndRoundedHalfUp(String pct, String subtotal, String expected) {
+        Discount discount = discount(DiscountType.PERCENTAGE, pct);
+        BigDecimal result = calculator.calculate(discount, new BigDecimal(subtotal));
+        assertThat(result).isEqualTo(new BigDecimal(expected));
     }
 
     private static Discount discount(DiscountType type, String value) {

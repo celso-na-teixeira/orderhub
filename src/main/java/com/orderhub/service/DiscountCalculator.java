@@ -4,6 +4,8 @@ import com.orderhub.domain.Discount;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import com.orderhub.util.MoneyUtils;
 
 @Component
 public class DiscountCalculator {
@@ -14,10 +16,9 @@ public class DiscountCalculator {
     public BigDecimal calculate(Discount discount, BigDecimal subtotal) {
         return switch (discount.getType()) {
             case PERCENTAGE -> {
-                double percentage = discount.getValue().doubleValue();
-                yield BigDecimal.valueOf(subtotal.doubleValue() * percentage / 100);
+                yield subtotal.multiply(discount.getValue()).divide(MoneyUtils.ONE_HUNDRED, 2, RoundingMode.HALF_UP);
             }
-            case FIXED_AMOUNT -> discount.getValue();
+            case FIXED_AMOUNT -> discount.getValue().min(subtotal);
         };
     }
 }
