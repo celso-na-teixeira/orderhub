@@ -59,8 +59,8 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
         assertCanAccess(order, currentUser);
 
-        if (order.getStatus() == OrderStatus.PAID) {
-            throw new BusinessRuleException("Order " + order.getOrderNumber() + " has already been paid");
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new BusinessRuleException("Order " + order.getOrderNumber() + " cannot be paid while " + order.getStatus());
         }
         if (!request.amount().equals(order.getTotal())) {
             throw new BusinessRuleException("Payment amount " + request.amount()

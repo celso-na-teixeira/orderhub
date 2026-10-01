@@ -12,21 +12,31 @@ import com.orderhub.repository.CustomerRepository;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.repository.PaymentRepository;
 import com.orderhub.security.AppUserDetails;
+import com.orderhub.domain.Payment;
+import com.orderhub.domain.PaymentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,22 +95,51 @@ class PaymentServiceTest {
         verify(paymentGateway, never()).charge(anyString(), any(), anyString());
     }
 
-    @Test
-    void rejectsPaymentForAlreadyPaidOrder() {
-        order.setStatus(OrderStatus.PAID);
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = "PENDING", mode = EnumSource.Mode.EXCLUDE)
+    void rejectsPaymentForOrdersThatAreNotPending(OrderStatus status) {
+        order.setStatus(status);
         PaymentRequest request = new PaymentRequest(new BigDecimal("59.90"), "tok_visa");
 
         assertThatThrownBy(() -> paymentService.pay(3L, request, staff))
-                .isInstanceOf(BusinessRuleException.class);
+            .isInstanceOf(BusinessRuleException.class);
+        verify(paymentGateway, never()).charge(anyString(), any(), anyString());
+
+    }
+
+    @Test 
+    void paysPendingOrder(){
+        PaymentRequest request = new PaymentRequest(new BigDecimal("59.90"), "tok_visa");
+
+        paymentService.pay(3L, request, staff);
+
+        verify(paymentGateway, times(1)).charge(eq(order.getOrderNumber()), eq(new BigDecimal("59.90")), eq("tok_visa"));
+
+        ArgumentCaptor<Payment> saved = ArgumentCaptor.forClass(Payment.class);
+        verify(paymentRepository).save(saved.capture());
+        assertThat(saved.getValue().getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
+        assertThat(saved.getValue().getAmount()).isEqualByComparingTo("59.90");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+
     }
 
     @Test
-    void rejectsPaymentForCancelledOrder() {
-        order.setStatus(OrderStatus.CANCELLED);
-        PaymentRequest request = new PaymentRequest(new BigDecimal("59.90"), "tok_visa");
+    void declinedCardLeavesOrderPendingAndRecordsFailedPayment() {
+        when(paymentGateway.charge(anyString(), any(), anyString()))
+                .thenReturn(new PaymentGateway.GatewayResult(false, null, "Card declined"));
+        PaymentRequest request = new PaymentRequest(new BigDecimal("59.90"), "tok_decline");
 
         assertThatThrownBy(() -> paymentService.pay(3L, request, staff))
-                .isInstanceOf(BusinessRuleException.class);
-        verify(paymentGateway, never()).charge(anyString(), any(), anyString());
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("declined");
+
+        // Assert side effects
+        ArgumentCaptor<Payment> saved = ArgumentCaptor.forClass(Payment.class);
+        verify(paymentRepository).save(saved.capture());
+        assertThat(saved.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        verify(inventoryService, never()).commit(any(), anyInt());
     }
 }
