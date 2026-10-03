@@ -3,17 +3,17 @@ package com.orderhub.service;
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderStatus;
+import com.orderhub.domain.Payment;
+import com.orderhub.domain.PaymentStatus;
 import com.orderhub.domain.Role;
 import com.orderhub.domain.User;
 import com.orderhub.dto.PaymentRequest;
 import com.orderhub.exception.BusinessRuleException;
 import com.orderhub.mapper.OrderMapper;
-import com.orderhub.repository.CustomerRepository;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.repository.PaymentRepository;
 import com.orderhub.security.AppUserDetails;
-import com.orderhub.domain.Payment;
-import com.orderhub.domain.PaymentStatus;
+import com.orderhub.security.OrderAccessPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +23,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -48,8 +47,6 @@ class PaymentServiceTest {
     @Mock
     private PaymentRepository paymentRepository;
     @Mock
-    private CustomerRepository customerRepository;
-    @Mock
     private PaymentGateway paymentGateway;
     @Mock
     private InventoryService inventoryService;
@@ -59,6 +56,8 @@ class PaymentServiceTest {
     private AuditService auditService;
     @Mock
     private OrderMapper orderMapper;
+    @Mock
+    private OrderAccessPolicy orderAccessPolicy;
 
     @InjectMocks
     private PaymentService paymentService;

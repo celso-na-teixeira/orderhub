@@ -1,5 +1,6 @@
 package com.orderhub.service;
 
+import com.orderhub.security.OrderAccessPolicy;
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
@@ -40,6 +41,7 @@ public class OrderService {
     private final PricingService pricingService;
     private final AuditService auditService;
     private final OrderNumberGenerator orderNumberGenerator;
+    private final OrderAccessPolicy orderAccessPolicy;
 
     public OrderService(OrderRepository orderRepository,
                         CustomerRepository customerRepository,
@@ -48,7 +50,8 @@ public class OrderService {
                         ReservationService reservationService,
                         PricingService pricingService,
                         AuditService auditService,
-                        OrderNumberGenerator orderNumberGenerator) {
+                        OrderNumberGenerator orderNumberGenerator,
+                        OrderAccessPolicy orderAccessPolicy) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.productService = productService;
@@ -57,6 +60,7 @@ public class OrderService {
         this.pricingService = pricingService;
         this.auditService = auditService;
         this.orderNumberGenerator = orderNumberGenerator;
+        this.orderAccessPolicy = orderAccessPolicy;
     }
 
     public Order placeOrder(Long userId, CreateOrderRequest request, String idempotencyKey) {
@@ -99,8 +103,13 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Order getOrder(Long id) {
-        return orderRepository.findById(id).get();
+    public Order getOrder(Long id, AppUserDetails currentUser) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", id));
+        
+        orderAccessPolicy.assertCanAccess(order, currentUser);
+
+        return order;
     }
 
     @Transactional(readOnly = true)

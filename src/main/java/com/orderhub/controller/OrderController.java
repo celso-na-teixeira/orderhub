@@ -76,8 +76,8 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public OrderResponse get(@PathVariable Long id) {
-        return orderMapper.toResponse(orderService.getOrder(id));
+    public OrderResponse get(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails user) {
+        return orderMapper.toResponse(orderService.getOrder(id, user));
     }
 
     @PutMapping("/{id}/items")

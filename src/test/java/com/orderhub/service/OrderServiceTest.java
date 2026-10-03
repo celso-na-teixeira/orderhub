@@ -9,9 +9,11 @@ import com.orderhub.domain.Role;
 import com.orderhub.domain.User;
 import com.orderhub.dto.CreateOrderRequest;
 import com.orderhub.dto.OrderLineRequest;
+import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.CustomerRepository;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.security.AppUserDetails;
+import com.orderhub.security.OrderAccessPolicy;
 import com.orderhub.util.OrderNumberGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -52,6 +55,8 @@ class OrderServiceTest {
     private AuditService auditService;
     @Mock
     private OrderNumberGenerator orderNumberGenerator;
+    @Mock
+    private OrderAccessPolicy orderAccessPolicy;
 
     @InjectMocks
     private OrderService orderService;
@@ -103,6 +108,28 @@ class OrderServiceTest {
         assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(inventoryService).release(any(), eq(2));
         verify(reservationService).releaseForOrder(any());
+    }
+
+    @Test
+    void returnsOrderWhenCallerIsAllowed() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PENDING);
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        AppUserDetails staff = new AppUserDetails(user(2L, Role.STAFF));
+
+        Order result = orderService.getOrder(10L, staff);
+
+        assertThat(result).isSameAs(order);
+        verify(orderAccessPolicy).assertCanAccess(order, staff);
+    }
+
+    @Test
+    void throwsResourceNotFoundWhenOrderDoesNotExist() {
+        when(orderRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.getOrder(10L, new AppUserDetails(user(2L, Role.STAFF))))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(orderAccessPolicy, never()).assertCanAccess(any(), any());
     }
 
     private static User user(Long id, Role role) {
