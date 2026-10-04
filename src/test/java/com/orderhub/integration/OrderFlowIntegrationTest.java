@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.containsString;
 
 class OrderFlowIntegrationTest extends AbstractIntegrationTest {
 
@@ -70,5 +71,19 @@ class OrderFlowIntegrationTest extends AbstractIntegrationTest {
         // order 1 belongs to Alice
         mockMvc.perform(get("/api/orders/1").header("Authorization", bob))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void orderCannotBePlacedWithoutItems() throws Exception {
+        String token = tokenFor("alice@example.com");
+        
+        mockMvc.perform(post("/api/orders")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": []}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("items")));
     }
 }
