@@ -77,7 +77,7 @@ class OrderServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
-        assertThat(result.getItems()).isNotEmpty();
+        assertThat(result.getItems()).hasSize(2);
         verify(orderRepository).save(any());
         verify(inventoryService, times(2)).reserve(anyLong(), anyInt());
     }

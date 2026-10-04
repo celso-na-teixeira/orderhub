@@ -12,7 +12,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
-import java.util.Objects;
 
 @Entity
 @Table(name = "order_items")
@@ -81,11 +80,11 @@ public class OrderItem {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof OrderItem other)) return false;
-        return Objects.equals(id, other.id);
+        return id != null && id.equals(other.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return OrderItem.class.hashCode();
     }
 }
