@@ -59,12 +59,12 @@ public class ProductService {
             throw new ConflictException("Product with SKU " + request.sku() + " already exists");
         }
         Product product = productRepository.save(productMapper.toEntity(request));
-        InventoryItem inventory = inventoryRepository.save(new InventoryItem(product, request.initialStock()));
-        product.setInventory(inventory);
+        inventoryRepository.save(new InventoryItem(product, request.initialStock()));
         log.info("Created product {} ({}) with initial stock {}", product.getSku(), product.getId(), request.initialStock());
         return product;
     }
 
+    @CacheEvict(value = "products", key = "#id")
     public Product update(Long id, UpdateProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));

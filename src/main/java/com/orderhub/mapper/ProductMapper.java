@@ -25,21 +25,29 @@ public class ProductMapper {
     }
 
     public Product toEntity(CreateProductRequest request) {
-        Product product = new Product();
-        product.setSku(request.sku());
-        product.setName(request.name());
+        Product product = new Product(request.sku(), request.name(), request.category(), request.price());
         product.setDescription(request.description());
-        product.setCategory(request.category());
-        product.setPrice(request.price());
-        product.setActive(true);
         return product;
     }
 
+    /**
+     * Partial update: only the fields present in the request change.
+     */
     public void applyUpdate(UpdateProductRequest request, Product product) {
-        product.setName(request.name());
-        product.setDescription(request.description());
-        product.setCategory(request.category());
-        product.setPrice(request.price());
-        product.setActive(request.active());
+        if (request.name() != null) {
+            product.setName(request.name());
+        }
+        if (request.description() != null) {
+            product.setDescription(request.description());
+        }
+        if (request.category() != null) {
+            product.setCategory(request.category());
+        }
+        if (request.price() != null) {
+            product.setPrice(request.price());
+        }
+        if (request.active() != null) {
+            product.setActive(request.active());
+        }
     }
 }

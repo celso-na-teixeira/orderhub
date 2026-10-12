@@ -1,5 +1,7 @@
 package com.orderhub.domain;
 
+import com.orderhub.exception.BusinessRuleException;
+import com.orderhub.exception.InsufficientStockException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -42,6 +44,7 @@ public class InventoryItem {
         this.product = product;
         this.quantityOnHand = quantityOnHand;
         this.quantityReserved = 0;
+        product.setInventory(this);
     }
 
     @PrePersist
@@ -52,6 +55,65 @@ public class InventoryItem {
 
     public int getAvailableQuantity() {
         return quantityOnHand - quantityReserved;
+    }
+
+    /**
+     * Holds stock for a pending order. Reserved stock is still on hand but can no longer be sold to anyone else.
+     */
+    public void reserve(int quantity) {
+        requirePositive(quantity);
+        int available = getAvailableQuantity();
+        if (available < quantity) {
+            throw new InsufficientStockException(product.getId(), quantity, available);
+        }
+        quantityReserved += quantity;
+    }
+
+    /**
+     * Turns reserved stock into a sale: it leaves the warehouse, so on hand and reserved both go down.
+     */
+    public void commit(int quantity) {
+        requirePositive(quantity);
+        if (quantity > quantityReserved) {
+            throw new IllegalStateException("Cannot commit " + quantity + " units, only " + quantityReserved + " are reserved");
+        }
+        quantityOnHand -= quantity;
+        quantityReserved -= quantity;
+    }
+
+    /**
+     * Gives up a reservation that was never paid for. On hand is unchanged.
+     */
+    public void release(int quantity) {
+        requirePositive(quantity);
+        if (quantity > quantityReserved) {
+            throw new IllegalStateException("Cannot release " + quantity + " units, only " + quantityReserved + " are reserved");
+        }
+        quantityReserved -= quantity;
+    }
+
+    /**
+     * Puts committed stock back on hand, for example when a paid order is cancelled.
+     */
+    public void restock(int quantity) {
+        requirePositive(quantity);
+        quantityOnHand += quantity;
+    }
+
+    /**
+     * Sets the on-hand quantity after a stock count. It cannot drop below what is currently reserved.
+     */
+    public void adjustOnHand(int newQuantityOnHand) {
+        if (newQuantityOnHand < quantityReserved) {
+            throw new BusinessRuleException("On-hand quantity cannot be set below the " + quantityReserved + " units currently reserved");
+        }
+        quantityOnHand = newQuantityOnHand;
+    }
+
+    private static void requirePositive(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
     }
 
     public Long getId() {
@@ -66,16 +128,8 @@ public class InventoryItem {
         return quantityOnHand;
     }
 
-    public void setQuantityOnHand(int quantityOnHand) {
-        this.quantityOnHand = quantityOnHand;
-    }
-
     public int getQuantityReserved() {
         return quantityReserved;
-    }
-
-    public void setQuantityReserved(int quantityReserved) {
-        this.quantityReserved = quantityReserved;
     }
 
     public LocalDateTime getUpdatedAt() {

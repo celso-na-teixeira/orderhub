@@ -1,7 +1,6 @@
 package com.orderhub.service;
 
 import com.orderhub.domain.InventoryItem;
-import com.orderhub.exception.InsufficientStockException;
 import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.InventoryRepository;
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@Transactional
 public class InventoryService {
 
     private static final Logger log = LoggerFactory.getLogger(InventoryService.class);
@@ -31,14 +31,9 @@ public class InventoryService {
      * Holds stock for a pending order. Reserved stock is still physically on hand
      * but can no longer be sold to anyone else.
      */
-    @Transactional
     public void reserve(Long productId, int quantity) {
         InventoryItem item = findItem(productId);
-        int available = item.getAvailableQuantity();
-        if (available < quantity) {
-            throw new InsufficientStockException(productId, quantity, available);
-        }
-        item.setQuantityReserved(item.getQuantityReserved() + quantity);
+        item.reserve(quantity);
         log.debug("Reserved {} of product {} (on hand {}, reserved {})",
                 quantity, productId, item.getQuantityOnHand(), item.getQuantityReserved());
     }
@@ -46,30 +41,34 @@ public class InventoryService {
     /**
      * Converts a reservation into a sale once the order is paid.
      */
-    @Transactional
     public void commit(Long productId, int quantity) {
         InventoryItem item = findItem(productId);
-        item.setQuantityOnHand(item.getQuantityOnHand() - quantity);
-        item.setQuantityReserved(item.getQuantityReserved() - quantity);
+        item.commit(quantity);
         log.debug("Committed {} of product {}", quantity, productId);
     }
 
     /**
-     * Returns stock to the pool when an order is cancelled.
+     * Frees the reservation of a pending order that is cancelled.
      */
-    @Transactional
     public void release(Long productId, int quantity) {
         InventoryItem item = findItem(productId);
-        item.setQuantityReserved(item.getQuantityReserved() - quantity);
-        item.setQuantityOnHand(item.getQuantityOnHand() + quantity);
+        item.release(quantity);
         log.debug("Released {} of product {}", quantity, productId);
     }
 
-    @Transactional
+    /**
+     * Returns committed stock to on hand when a paid order is cancelled.
+     */
+    public void restock(Long productId, int quantity) {
+        InventoryItem item = findItem(productId);
+        item.restock(quantity);
+        log.debug("Restocked {} of product {}", quantity, productId);
+    }
+
     public InventoryItem adjust(Long productId, int newQuantityOnHand, String reason) {
         InventoryItem item = findItem(productId);
         int previous = item.getQuantityOnHand();
-        applyAdjustment(item, newQuantityOnHand);
+        item.adjustOnHand(newQuantityOnHand);
         log.info("Stock adjusted for product {}: {} -> {} ({})", productId, previous, newQuantityOnHand, reason);
         return item;
     }
@@ -79,11 +78,6 @@ public class InventoryService {
         return inventoryRepository.findAll().stream()
                 .filter(item -> item.getAvailableQuantity() <= threshold)
                 .toList();
-    }
-
-    @Transactional
-    private void applyAdjustment(InventoryItem item, int newQuantityOnHand) {
-        item.setQuantityOnHand(newQuantityOnHand);
     }
 
     private InventoryItem findItem(Long productId) {

@@ -2,6 +2,7 @@ package com.orderhub.service;
 
 import com.orderhub.domain.InventoryItem;
 import com.orderhub.domain.Product;
+import com.orderhub.exception.BusinessRuleException;
 import com.orderhub.exception.InsufficientStockException;
 import com.orderhub.repository.InventoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,7 +32,7 @@ class InventoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        item = new InventoryItem(new Product(), 10);
+        item = new InventoryItem(new Product("TST-0001", "Test product", "TEST", new BigDecimal("1.00")), 10);
         when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(item));
     }
 
@@ -45,7 +47,7 @@ class InventoryServiceTest {
 
     @Test
     void reserveFailsWhenNotEnoughAvailable() {
-        item.setQuantityReserved(8);
+        item.reserve(8);
 
         assertThatThrownBy(() -> inventoryService.reserve(1L, 3))
                 .isInstanceOf(InsufficientStockException.class);
@@ -53,7 +55,7 @@ class InventoryServiceTest {
 
     @Test
     void commitReducesOnHandAndReserved() {
-        item.setQuantityReserved(4);
+        item.reserve(4);
 
         inventoryService.commit(1L, 4);
 
@@ -68,6 +70,35 @@ class InventoryServiceTest {
         inventoryService.release(1L, 2);
 
         assertThat(item.getQuantityReserved()).isZero();
-        assertThat(item.getQuantityOnHand()).isEqualTo(12);
+        assertThat(item.getQuantityOnHand()).isEqualTo(10);
+        assertThat(item.getAvailableQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    void releaseCannotFreeMoreThanIsReserved() {
+        inventoryService.reserve(1L, 2);
+
+        assertThatThrownBy(() -> inventoryService.release(1L, 3))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void restockPutsCommittedStockBackOnHand() {
+        inventoryService.reserve(1L, 4);
+        inventoryService.commit(1L, 4);
+
+        inventoryService.restock(1L, 4);
+
+        assertThat(item.getQuantityOnHand()).isEqualTo(10);
+        assertThat(item.getQuantityReserved()).isZero();
+    }
+
+    @Test
+    void adjustCannotSetOnHandBelowReserved() {
+        inventoryService.reserve(1L, 6);
+
+        assertThatThrownBy(() -> inventoryService.adjust(1L, 5, "stock count"))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(item.getQuantityOnHand()).isEqualTo(10);
     }
 }

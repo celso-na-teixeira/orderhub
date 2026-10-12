@@ -27,12 +27,7 @@ public class OrderTest {
     }
 
     private static Product product(String sku, String price) {
-        Product product = new Product();
-        product.setSku(sku);
-        product.setName(sku);
-        product.setPrice(new BigDecimal(price));
-        product.setActive(true);
-        return product;
+        return new Product(sku, sku, "TEST", new BigDecimal(price));
     }
 
 }

@@ -50,6 +50,22 @@ public class Product {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    protected Product() {
+    }
+
+    public Product(String sku, String name, String category, BigDecimal price) {
+        if (sku == null || sku.isBlank()) {
+            throw new IllegalArgumentException("Product SKU is required");
+        }
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Product name is required");
+        }
+        this.sku = sku;
+        this.name = name;
+        this.category = category;
+        setPrice(price);
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();
@@ -66,10 +82,6 @@ public class Product {
 
     public String getSku() {
         return sku;
-    }
-
-    public void setSku(String sku) {
-        this.sku = sku;
     }
 
     public String getName() {
@@ -101,6 +113,9 @@ public class Product {
     }
 
     public void setPrice(BigDecimal price) {
+        if (price == null || price.signum() <= 0) {
+            throw new IllegalArgumentException("Product price must be positive");
+        }
         this.price = price;
     }
 
@@ -120,7 +135,8 @@ public class Product {
         return inventory;
     }
 
-    public void setInventory(InventoryItem inventory) {
+    // called by InventoryItem when the stock record is created for this product
+    void setInventory(InventoryItem inventory) {
         this.inventory = inventory;
     }
 
