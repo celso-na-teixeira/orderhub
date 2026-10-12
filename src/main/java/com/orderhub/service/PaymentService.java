@@ -8,6 +8,7 @@ import com.orderhub.domain.PaymentStatus;
 import com.orderhub.dto.PaymentRequest;
 import com.orderhub.dto.PaymentResponse;
 import com.orderhub.exception.BusinessRuleException;
+import com.orderhub.exception.PaymentDeclinedException;
 import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.mapper.OrderMapper;
 import com.orderhub.repository.OrderRepository;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@Transactional
 public class PaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
@@ -52,6 +54,11 @@ public class PaymentService {
         this.orderAccessPolicy = orderAccessPolicy;
     }
 
+    /**
+     * The payment record, the stock commitment and the status change are written in one transaction (BR-43).
+     * A declined charge is the one exception: its FAILED payment record is kept and the order stays as it was.
+     */
+    @Transactional(noRollbackFor = PaymentDeclinedException.class)
     public PaymentResponse pay(Long orderId, PaymentRequest request, AppUserDetails currentUser) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
@@ -75,7 +82,7 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         if (!result.success()) {
-            throw new BusinessRuleException("Payment declined: " + result.message());
+            throw new PaymentDeclinedException("Payment declined: " + result.message());
         }
 
         completeOrder(order);
@@ -83,8 +90,7 @@ public class PaymentService {
         return orderMapper.toPaymentResponse(payment);
     }
 
-    @Transactional
-    public void completeOrder(Order order) {
+    private void completeOrder(Order order) {
         order.getItems().forEach(item ->
                 inventoryService.commit(item.getProduct().getId(), item.getQuantity()));
         reservationService.markConverted(order.getId());

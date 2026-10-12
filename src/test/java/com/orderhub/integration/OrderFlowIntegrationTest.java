@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.hamcrest.Matchers.containsString;
@@ -25,7 +26,7 @@ class OrderFlowIntegrationTest extends AbstractIntegrationTest {
                         .content("""
                                 {"items": [{"productId": 7, "quantity": 2}]}
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn().getResponse().getContentAsString();
 
@@ -59,9 +60,37 @@ class OrderFlowIntegrationTest extends AbstractIntegrationTest {
                                   {"productId": 18, "quantity": 3}
                                 ]}
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.items.length()").value(2))
                 .andExpect(jsonPath("$.subtotal").value(50.46));
+    }
+
+    @Test
+    void replacingItemsSwapsTheOrderLinesAndKeepsTheProducts() throws Exception {
+        String token = tokenFor("alice@example.com");
+
+        String created = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 7, "quantity": 2}]}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long orderId = json(created).get("id").asLong();
+
+        mockMvc.perform(put("/api/orders/{id}/items", orderId)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 6, "quantity": 1}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].productId").value(6));
+
+        mockMvc.perform(get("/api/products/7"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -71,6 +100,84 @@ class OrderFlowIntegrationTest extends AbstractIntegrationTest {
         // order 1 belongs to Alice
         mockMvc.perform(get("/api/orders/1").header("Authorization", bob))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void refundAddsARefundedPaymentAndLeavesTheChargeUntouched() throws Exception {
+        String token = tokenFor("alice@example.com");
+        String staff = tokenFor("staff@orderhub.io");
+
+        String created = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 7, "quantity": 1}]}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long orderId = json(created).get("id").asLong();
+
+        mockMvc.perform(post("/api/orders/{id}/payments", orderId)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 7.99, \"cardToken\": \"tok_visa\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/orders/{id}/refund", orderId)
+                        .header("Authorization", staff)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\": \"Customer changed their mind\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REFUNDED"));
+
+        mockMvc.perform(get("/api/orders/{id}/payments", orderId).header("Authorization", staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.status == 'SUCCEEDED')].amount").value(7.99))
+                .andExpect(jsonPath("$[?(@.status == 'REFUNDED')].amount").value(7.99));
+    }
+
+    @Test
+    void declinedPaymentIsRecordedAndLeavesTheOrderPending() throws Exception {
+        String token = tokenFor("alice@example.com");
+
+        String created = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 7, "quantity": 1}]}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long orderId = json(created).get("id").asLong();
+
+        mockMvc.perform(post("/api/orders/{id}/payments", orderId)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 7.99, \"cardToken\": \"tok_decline\"}"))
+                .andExpect(status().isUnprocessableEntity());
+
+        mockMvc.perform(get("/api/orders/{id}/payments", orderId).header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("FAILED"));
+
+        mockMvc.perform(get("/api/orders/{id}", orderId).header("Authorization", token))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    void orderCannotBePlacedWithAZeroQuantityLine() throws Exception {
+        String token = tokenFor("alice@example.com");
+
+        mockMvc.perform(post("/api/orders")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 7, "quantity": 0}]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("quantity")));
     }
 
     @Test
