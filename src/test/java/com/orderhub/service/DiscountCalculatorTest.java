@@ -32,6 +32,15 @@ class DiscountCalculatorTest {
         assertThat(result).isEqualByComparingTo("7.99");
     }
 
+    @Test
+    void percentageDiscountNeverExceedsSubtotal() {
+        Discount discount = discount(DiscountType.PERCENTAGE, "150");
+
+        BigDecimal result = calculator.calculate(discount, new BigDecimal("7.99"));
+
+        assertThat(result).isEqualByComparingTo("7.99");
+    }
+
     @ParameterizedTest 
     @CsvSource({
         "10, 200.00,  20.00",
