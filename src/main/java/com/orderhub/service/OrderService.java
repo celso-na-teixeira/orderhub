@@ -28,7 +28,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -183,17 +186,45 @@ public class OrderService {
     public Order replaceItems(Long orderId, List<OrderLineRequest> lines, AppUserDetails currentUser) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
-        if (order.getStatus() == OrderStatus.SHIPPED) {
-            throw new InvalidOrderStateException("Order " + order.getOrderNumber() + " has already shipped");
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new InvalidOrderStateException("Order " + order.getOrderNumber() + " is not pending");
         }
 
+        Map<Long, Integer> oldQuantities = order.getItems().stream()
+                .collect(Collectors.toMap(item -> item.getProduct().getId(), OrderItem::getQuantity));
+        Map<Long, Integer> newQuantities = mergeLines(lines);
+
         List<OrderItem> newItems = new ArrayList<>();
-        for (Map.Entry<Long, Integer> line : mergeLines(lines).entrySet()) {
+        for (Map.Entry<Long, Integer> line : newQuantities.entrySet()) {
             Product product = productService.getProduct(line.getKey());
+            if (!product.isActive()) {
+                throw new BusinessRuleException("Product " + product.getSku() + " is no longer available");
+            }
             newItems.add(new OrderItem(product, line.getValue(), product.getPrice()));
         }
+
+        // Adjust stock by the difference only, locking rows in product-ID order (same rule as placeOrder/cancelOrder).
+        Set<Long> touchedProducts = new TreeSet<>();
+        touchedProducts.addAll(oldQuantities.keySet());
+        touchedProducts.addAll(newQuantities.keySet());
+        for (Long productId : touchedProducts) {
+            int oldQty = oldQuantities.getOrDefault(productId, 0);
+            int newQty = newQuantities.getOrDefault(productId, 0);
+            if (newQty > oldQty) {
+                inventoryService.reserve(productId, newQty - oldQty);
+            } else if (oldQty > newQty) {
+                inventoryService.release(productId, oldQty - newQty);
+            }
+        }
+
         order.replaceItems(newItems);
         pricingService.price(order, order.getDiscountCode());
+
+        // The old per-line Reservation rows no longer match the order's items; replace them with fresh ones.
+        reservationService.releaseForOrder(orderId);
+        for (Map.Entry<Long, Integer> line : newQuantities.entrySet()) {
+            reservationService.create(orderId, line.getKey(), line.getValue());
+        }
 
         auditService.record("ORDER", orderId, "ITEMS_REPLACED", currentUser.getUsername(), order);
         return order;
