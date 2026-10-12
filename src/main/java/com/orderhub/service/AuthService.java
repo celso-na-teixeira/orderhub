@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
@@ -38,7 +39,6 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    @Transactional
     public AuthResponse register(RegisterRequest request) {
         log.info("Registering new user: {}", request);
         if (userRepository.existsByEmail(request.email())) {

@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
+@Transactional
 public class ReservationService {
 
     private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
@@ -27,7 +28,6 @@ public class ReservationService {
         this.properties = properties;
     }
 
-    @Transactional
     public Reservation create(Long orderId, Long productId, int quantity) {
         LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plus(properties.getTtl());
         Reservation reservation = reservationRepository.save(new Reservation(orderId, productId, quantity, expiresAt));
@@ -41,13 +41,11 @@ public class ReservationService {
         return reservationRepository.findByOrderIdAndStatus(orderId, ReservationStatus.ACTIVE);
     }
 
-    @Transactional
     public void markConverted(Long orderId) {
         reservationRepository.findByOrderIdAndStatus(orderId, ReservationStatus.ACTIVE)
                 .forEach(r -> r.setStatus(ReservationStatus.CONVERTED));
     }
 
-    @Transactional
     public void releaseForOrder(Long orderId) {
         reservationRepository.findByOrderId(orderId)
                 .forEach(r -> r.setStatus(ReservationStatus.RELEASED));
@@ -57,7 +55,6 @@ public class ReservationService {
      * Expires reservations of unpaid orders once their time-to-live has passed.
      */
     @Scheduled(fixedDelayString = "${app.reservation.cleanup-interval-ms:60000}")
-    @Transactional
     public void expireStaleReservations() {
         List<Reservation> stale = reservationRepository
                 .findByStatusAndExpiresAtBefore(ReservationStatus.ACTIVE, LocalDateTime.now());

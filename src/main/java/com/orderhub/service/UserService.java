@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
@@ -29,7 +30,6 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }
 
-    @Transactional
     public User updateProfile(Long userId, UpdateProfileRequest request) {
         User user = getById(userId);
         if (request.email() != null && !request.email().isBlank()) {
