@@ -1,12 +1,14 @@
 package com.orderhub.controller;
 
-import com.orderhub.domain.Discount;
 import com.orderhub.dto.DiscountRequest;
+import com.orderhub.dto.DiscountResponse;
 import com.orderhub.dto.DiscountValidationResponse;
+import com.orderhub.mapper.DiscountMapper;
 import com.orderhub.service.DiscountService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,14 +28,17 @@ import java.util.List;
 public class DiscountController {
 
     private final DiscountService discountService;
+    private final DiscountMapper discountMapper;
 
-    public DiscountController(DiscountService discountService) {
+    public DiscountController(DiscountService discountService, DiscountMapper discountMapper) {
         this.discountService = discountService;
+        this.discountMapper = discountMapper;
     }
 
     @GetMapping
-    public List<Discount> list() {
-        return discountService.findAll();
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public List<DiscountResponse> list() {
+        return discountService.findAll().stream().map(discountMapper::toResponse).toList();
     }
 
     @GetMapping("/validate")
@@ -43,12 +48,14 @@ public class DiscountController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Discount create(@Valid @RequestBody DiscountRequest request) {
-        return discountService.create(request);
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public DiscountResponse create(@Valid @RequestBody DiscountRequest request) {
+        return discountMapper.toResponse(discountService.create(request));
     }
 
     @PatchMapping("/{id}")
-    public Discount update(@PathVariable Long id, @Valid @RequestBody DiscountRequest request) {
-        return discountService.update(id, request);
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public DiscountResponse update(@PathVariable Long id, @Valid @RequestBody DiscountRequest request) {
+        return discountMapper.toResponse(discountService.update(id, request));
     }
 }
