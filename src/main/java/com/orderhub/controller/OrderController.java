@@ -31,7 +31,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -58,7 +60,9 @@ public class OrderController {
     public ResponseEntity<OrderResponse> create(@Valid @RequestBody CreateOrderRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                                 @AuthenticationPrincipal AppUserDetails user) {
-        return ResponseEntity.ok(orderMapper.toResponse(orderService.placeOrder(user.getId(), request, idempotencyKey)));
+        OrderResponse created = orderMapper.toResponse(orderService.placeOrder(user.getId(), request, idempotencyKey));
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(created.id()).toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping

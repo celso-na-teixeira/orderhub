@@ -21,8 +21,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.math.BigDecimal;
+import java.net.URI;
 
 @RestController
 @RequestMapping("/api/products")
@@ -57,7 +59,9 @@ public class ProductController {
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
-        return ResponseEntity.ok(productMapper.toResponse(productService.create(request)));
+        ProductResponse created = productMapper.toResponse(productService.create(request));
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(created.id()).toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     @PatchMapping("/{id}")
