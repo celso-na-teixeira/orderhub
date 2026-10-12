@@ -19,6 +19,8 @@ import jakarta.persistence.Version;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -83,6 +85,28 @@ public class Order {
         items.add(item);
     }
 
+    public void addItems(Collection<OrderItem> newItems) {
+        newItems.forEach(this::addItem);
+    }
+
+    public void replaceItems(Collection<OrderItem> newItems) {
+        items.clear();
+        addItems(newItems);
+    }
+
+    public BigDecimal calculateSubtotal() {
+        return items.stream()
+                .map(OrderItem::getLineTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public void applyPricing(String discountCode, BigDecimal discountAmount) {
+        this.subtotal = calculateSubtotal();
+        this.discountCode = discountCode;
+        this.discountAmount = discountAmount;
+        this.total = subtotal.subtract(discountAmount);
+    }
+
     public Long getId() {
         return id;
     }
@@ -112,43 +136,23 @@ public class Order {
     }
 
     public Set<OrderItem> getItems() {
-        return items;
-    }
-
-    public void setItems(Set<OrderItem> items) {
-        this.items = items;
+        return Collections.unmodifiableSet(items);
     }
 
     public BigDecimal getSubtotal() {
         return subtotal;
     }
 
-    public void setSubtotal(BigDecimal subtotal) {
-        this.subtotal = subtotal;
-    }
-
     public BigDecimal getDiscountAmount() {
         return discountAmount;
-    }
-
-    public void setDiscountAmount(BigDecimal discountAmount) {
-        this.discountAmount = discountAmount;
     }
 
     public BigDecimal getTotal() {
         return total;
     }
 
-    public void setTotal(BigDecimal total) {
-        this.total = total;
-    }
-
     public String getDiscountCode() {
         return discountCode;
-    }
-
-    public void setDiscountCode(String discountCode) {
-        this.discountCode = discountCode;
     }
 
     public String getIdempotencyKey() {

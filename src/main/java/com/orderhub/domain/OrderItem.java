@@ -25,7 +25,7 @@ public class OrderItem {
     @JoinColumn(name = "order_id")
     private Order order;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = {CascadeType.MERGE, CascadeType.REMOVE})
+    @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.MERGE)
     @JoinColumn(name = "product_id")
     private Product product;
 
@@ -42,6 +42,9 @@ public class OrderItem {
     }
 
     public OrderItem(Product product, int quantity, BigDecimal unitPrice) {
+        if (quantity < 1) {
+            throw new IllegalArgumentException("Order line quantity must be at least 1");
+        }
         this.product = product;
         this.quantity = quantity;
         this.unitPrice = unitPrice;

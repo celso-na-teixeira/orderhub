@@ -111,6 +111,20 @@ class OrderServiceTest {
     }
 
     @Test
+    void cancelPaidOrderPutsStockBackOnHand() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PAID);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        Order result = orderService.cancelOrder(10L, new AppUserDetails(user(2L, Role.STAFF)));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(inventoryService).restock(any(), eq(2));
+        verify(inventoryService, never()).release(any(), anyInt());
+    }
+
+    @Test
     void returnsOrderWhenCallerIsAllowed() {
         Order order = new Order();
         order.setStatus(OrderStatus.PENDING);
@@ -141,11 +155,6 @@ class OrderServiceTest {
     }
 
     private static Product product(String sku, String price) {
-        Product product = new Product();
-        product.setSku(sku);
-        product.setName(sku);
-        product.setPrice(new BigDecimal(price));
-        product.setActive(true);
-        return product;
+        return new Product(sku, sku, "TEST", new BigDecimal(price));
     }
 }

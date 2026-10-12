@@ -2,7 +2,9 @@ package com.orderhub.service;
 
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
+import com.orderhub.domain.OrderItem;
 import com.orderhub.domain.OrderStatus;
+import com.orderhub.domain.Product;
 import com.orderhub.domain.Payment;
 import com.orderhub.domain.PaymentStatus;
 import com.orderhub.domain.Role;
@@ -77,8 +79,8 @@ class PaymentServiceTest {
         order.setOrderNumber("ORD-20260910-00001");
         order.setCustomer(new Customer(null, "Carol", "carol@example.com"));
         order.setStatus(OrderStatus.PENDING);
-        order.setSubtotal(new BigDecimal("59.90"));
-        order.setTotal(new BigDecimal("59.90"));
+        order.addItem(new OrderItem(new Product("TST-0001", "Test product", "TEST", new BigDecimal("1.00")), 1, new BigDecimal("59.90")));
+        order.applyPricing(null, BigDecimal.ZERO);
         when(orderRepository.findById(3L)).thenReturn(Optional.of(order));
 
         lenient().when(paymentGateway.charge(anyString(), any(), anyString()))

@@ -23,7 +23,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -141,8 +141,14 @@ public class OrderService {
             throw new InvalidOrderStateException(orderId, order.getStatus(), OrderStatus.CANCELLED);
         }
 
+        // a pending order only holds a reservation; once paid, the stock was committed and goes back on hand (BR-13)
+        boolean pending = order.getStatus() == OrderStatus.PENDING;
         for (OrderItem item : order.getItems()) {
-            inventoryService.release(item.getProduct().getId(), item.getQuantity());
+            if (pending) {
+                inventoryService.release(item.getProduct().getId(), item.getQuantity());
+            } else {
+                inventoryService.restock(item.getProduct().getId(), item.getQuantity());
+            }
         }
         reservationService.releaseForOrder(order.getId());
 
@@ -172,11 +178,12 @@ public class OrderService {
             throw new InvalidOrderStateException("Order " + order.getOrderNumber() + " has already shipped");
         }
 
-        order.setItems(new HashSet<>());
+        List<OrderItem> newItems = new ArrayList<>();
         for (OrderLineRequest line : lines) {
             Product product = productService.getProduct(line.productId());
-            order.addItem(new OrderItem(product, line.quantity(), product.getPrice()));
+            newItems.add(new OrderItem(product, line.quantity(), product.getPrice()));
         }
+        order.replaceItems(newItems);
         pricingService.price(order, order.getDiscountCode());
 
         auditService.record("ORDER", orderId, "ITEMS_REPLACED", currentUser.getUsername(), order);
