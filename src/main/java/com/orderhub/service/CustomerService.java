@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
+@Transactional
 public class CustomerService {
 
     private static final Logger log = LoggerFactory.getLogger(CustomerService.class);
@@ -25,15 +25,18 @@ public class CustomerService {
         this.customerRepository = customerRepository;
     }
 
+    @Transactional(readOnly = true)
     public Page<Customer> findAll(Pageable pageable) {
         return customerRepository.findAll(pageable);
     }
 
+    @Transactional(readOnly = true)
     public Customer getById(Long id) {
         return customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", id));
     }
 
+    @Transactional(readOnly = true)
     public Customer getByUserId(Long userId) {
         return customerRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer for user", userId));
@@ -41,7 +44,7 @@ public class CustomerService {
 
     public Customer update(Long id, UpdateCustomerRequest request, AppUserDetails currentUser) {
         Customer customer = getById(id);
-        if (currentUser.isCustomer() && !customer.getUser().getId().equals(currentUser.getId())) {
+        if (currentUser.isCustomer() && !customer.belongsTo(currentUser.getId())) {
             throw new AccessDeniedException("Customers can only update their own profile");
         }
         customer.setName(request.name());

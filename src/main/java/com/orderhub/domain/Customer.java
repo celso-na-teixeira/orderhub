@@ -57,12 +57,12 @@ public class Customer {
         return id;
     }
 
-    public User getUser() {
-        return user;
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public boolean belongsTo(Long userId) {
+        return user != null && user.getId().equals(userId);
     }
 
     public String getName() {

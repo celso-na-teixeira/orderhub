@@ -1,7 +1,8 @@
 package com.orderhub.controller;
 
-import com.orderhub.domain.Customer;
+import com.orderhub.dto.CustomerResponse;
 import com.orderhub.dto.UpdateCustomerRequest;
+import com.orderhub.mapper.CustomerMapper;
 import com.orderhub.security.AppUserDetails;
 import com.orderhub.service.CustomerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,32 +25,34 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final CustomerMapper customerMapper;
 
-    public CustomerController(CustomerService customerService) {
+    public CustomerController(CustomerService customerService, CustomerMapper customerMapper) {
         this.customerService = customerService;
+        this.customerMapper = customerMapper;
     }
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'STAFF')")
-    public Page<Customer> list(@RequestParam(defaultValue = "0") int page,
-                               @RequestParam(defaultValue = "20") int size) {
-        return customerService.findAll(PageRequest.of(page, size));
+    public Page<CustomerResponse> list(@RequestParam(defaultValue = "0") int page,
+                                       @RequestParam(defaultValue = "20") int size) {
+        return customerService.findAll(PageRequest.of(page, size)).map(customerMapper::toResponse);
     }
 
     @GetMapping("/me")
-    public Customer me(@AuthenticationPrincipal AppUserDetails user) {
-        return customerService.getByUserId(user.getId());
+    public CustomerResponse me(@AuthenticationPrincipal AppUserDetails user) {
+        return customerMapper.toResponse(customerService.getByUserId(user.getId()));
     }
 
     @GetMapping("/{id}")
-    public Customer get(@PathVariable Long id) {
-        return customerService.getById(id);
+    public CustomerResponse get(@PathVariable Long id) {
+        return customerMapper.toResponse(customerService.getById(id));
     }
 
     @PutMapping("/{id}")
-    public Customer update(@PathVariable Long id,
-                           @Valid @RequestBody UpdateCustomerRequest request,
-                           @AuthenticationPrincipal AppUserDetails user) {
-        return customerService.update(id, request, user);
+    public CustomerResponse update(@PathVariable Long id,
+                                   @Valid @RequestBody UpdateCustomerRequest request,
+                                   @AuthenticationPrincipal AppUserDetails user) {
+        return customerMapper.toResponse(customerService.update(id, request, user));
     }
 }
