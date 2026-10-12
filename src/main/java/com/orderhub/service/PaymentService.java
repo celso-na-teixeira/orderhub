@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -91,8 +92,10 @@ public class PaymentService {
     }
 
     private void completeOrder(Order order) {
-        order.getItems().forEach(item ->
-                inventoryService.commit(item.getProduct().getId(), item.getQuantity()));
+        // stock rows are locked in product order everywhere, so concurrent requests cannot deadlock
+        order.getItems().stream()
+                .sorted(Comparator.comparing(item -> item.getProduct().getId()))
+                .forEach(item -> inventoryService.commit(item.getProduct().getId(), item.getQuantity()));
         reservationService.markConverted(order.getId());
         order.setStatus(OrderStatus.PAID);
         orderRepository.save(order);

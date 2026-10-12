@@ -83,10 +83,30 @@ class OrderServiceTest {
     }
 
     @Test
+    void placeOrderMergesLinesForTheSameProduct() {
+        Customer customer = new Customer(user(3L, Role.CUSTOMER), "Alice", "alice@example.com");
+        when(customerRepository.findByUserId(3L)).thenReturn(Optional.of(customer));
+        when(orderNumberGenerator.next()).thenReturn("ORD-TEST-00002");
+        when(productService.getProduct(1L)).thenReturn(product("ELE-1001", "24.99"));
+        when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                List.of(new OrderLineRequest(1L, 2), new OrderLineRequest(1L, 3)), null);
+
+        Order result = orderService.placeOrder(3L, request, null);
+
+        assertThat(result.getItems()).hasSize(1);
+        assertThat(result.getItems().iterator().next().getQuantity()).isEqualTo(5);
+        verify(inventoryService).reserve(1L, 5);
+    }
+
+    @Test
     void placeOrderReturnsExistingOrderForSameIdempotencyKey() {
         Order existing = new Order();
         existing.setOrderNumber("ORD-20260901-00001");
-        when(orderRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.of(existing));
+        Customer customer = new Customer(user(3L, Role.CUSTOMER), "Alice", "alice@example.com");
+        when(customerRepository.findByUserIdForUpdate(3L)).thenReturn(Optional.of(customer));
+        when(orderRepository.findByCustomerIdAndIdempotencyKey(any(), eq("key-1"))).thenReturn(Optional.of(existing));
 
         CreateOrderRequest request = new CreateOrderRequest(List.of(new OrderLineRequest(1L, 1)), null);
 

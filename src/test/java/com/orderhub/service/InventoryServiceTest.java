@@ -5,6 +5,7 @@ import com.orderhub.domain.Product;
 import com.orderhub.exception.BusinessRuleException;
 import com.orderhub.exception.InsufficientStockException;
 import com.orderhub.repository.InventoryRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +25,8 @@ class InventoryServiceTest {
 
     @Mock
     private InventoryRepository inventoryRepository;
+    @Mock
+    private EntityManager entityManager;
 
     @InjectMocks
     private InventoryService inventoryService;
@@ -33,7 +36,7 @@ class InventoryServiceTest {
     @BeforeEach
     void setUp() {
         item = new InventoryItem(new Product("TST-0001", "Test product", "TEST", new BigDecimal("1.00")), 10);
-        when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(item));
+        when(inventoryRepository.findByProductIdForUpdate(1L)).thenReturn(Optional.of(item));
     }
 
     @Test

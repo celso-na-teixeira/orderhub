@@ -14,7 +14,7 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    Optional<Order> findByIdempotencyKey(String idempotencyKey);
+    Optional<Order> findByCustomerIdAndIdempotencyKey(Long customerId, String idempotencyKey);
 
     Page<Order> findByCustomerIdAndStatus(Long customerId, OrderStatus status, Pageable pageable);
 

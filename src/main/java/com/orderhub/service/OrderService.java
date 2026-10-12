@@ -24,8 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 @Service
 @Transactional
@@ -64,37 +67,43 @@ public class OrderService {
     }
 
     public Order placeOrder(Long userId, CreateOrderRequest request, String idempotencyKey) {
-        if (idempotencyKey != null) {
-            Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
+        boolean idempotent = idempotencyKey != null && !idempotencyKey.isBlank();
+
+        // with a key, the customer row is locked so that a repeated request waits for the first one to finish (BR-24)
+        Customer customer = (idempotent
+                ? customerRepository.findByUserIdForUpdate(userId)
+                : customerRepository.findByUserId(userId))
+                .orElseThrow(() -> new BusinessRuleException("Current user has no customer profile"));
+
+        if (idempotent) {
+            Optional<Order> existing = orderRepository.findByCustomerIdAndIdempotencyKey(customer.getId(), idempotencyKey);
             if (existing.isPresent()) {
                 log.info("Idempotent replay for key {}, returning order {}", idempotencyKey, existing.get().getOrderNumber());
                 return existing.get();
             }
         }
 
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessRuleException("Current user has no customer profile"));
-
         Order order = new Order();
         order.setOrderNumber(orderNumberGenerator.next());
         order.setCustomer(customer);
         order.setStatus(OrderStatus.PENDING);
-        order.setIdempotencyKey(idempotencyKey);
+        order.setIdempotencyKey(idempotent ? idempotencyKey : null);
 
-        for (OrderLineRequest line : request.items()) {
-            Product product = productService.getProduct(line.productId());
+        Map<Long, Integer> quantities = mergeLines(request.items());
+        for (Map.Entry<Long, Integer> line : quantities.entrySet()) {
+            Product product = productService.getProduct(line.getKey());
             if (!product.isActive()) {
                 throw new BusinessRuleException("Product " + product.getSku() + " is no longer available");
             }
-            order.addItem(new OrderItem(product, line.quantity(), product.getPrice()));
+            order.addItem(new OrderItem(product, line.getValue(), product.getPrice()));
         }
 
         pricingService.price(order, request.discountCode());
         Order saved = orderRepository.save(order);
 
-        for (OrderLineRequest line : request.items()) {
-            inventoryService.reserve(line.productId(), line.quantity());
-            reservationService.create(saved.getId(), line.productId(), line.quantity());
+        for (Map.Entry<Long, Integer> line : quantities.entrySet()) {
+            inventoryService.reserve(line.getKey(), line.getValue());
+            reservationService.create(saved.getId(), line.getKey(), line.getValue());
         }
 
         auditService.record("ORDER", saved.getId(), "CREATED", customer.getEmail(), saved);
@@ -143,7 +152,7 @@ public class OrderService {
 
         // a pending order only holds a reservation; once paid, the stock was committed and goes back on hand (BR-13)
         boolean pending = order.getStatus() == OrderStatus.PENDING;
-        for (OrderItem item : order.getItems()) {
+        for (OrderItem item : inProductOrder(order)) {
             if (pending) {
                 inventoryService.release(item.getProduct().getId(), item.getQuantity());
             } else {
@@ -179,9 +188,9 @@ public class OrderService {
         }
 
         List<OrderItem> newItems = new ArrayList<>();
-        for (OrderLineRequest line : lines) {
-            Product product = productService.getProduct(line.productId());
-            newItems.add(new OrderItem(product, line.quantity(), product.getPrice()));
+        for (Map.Entry<Long, Integer> line : mergeLines(lines).entrySet()) {
+            Product product = productService.getProduct(line.getKey());
+            newItems.add(new OrderItem(product, line.getValue(), product.getPrice()));
         }
         order.replaceItems(newItems);
         pricingService.price(order, order.getDiscountCode());
@@ -195,5 +204,23 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
         orderRepository.delete(order);
         log.warn("Order {} deleted", order.getOrderNumber());
+    }
+
+    /**
+     * Adds up lines for the same product, so each product appears once (BR-21).
+     * The result is ordered by product id, which keeps stock rows locked in the same order for every request.
+     */
+    private static Map<Long, Integer> mergeLines(List<OrderLineRequest> lines) {
+        Map<Long, Integer> quantities = new TreeMap<>();
+        for (OrderLineRequest line : lines) {
+            quantities.merge(line.productId(), line.quantity(), Integer::sum);
+        }
+        return quantities;
+    }
+
+    private static List<OrderItem> inProductOrder(Order order) {
+        return order.getItems().stream()
+                .sorted(Comparator.comparing(item -> item.getProduct().getId()))
+                .toList();
     }
 }
