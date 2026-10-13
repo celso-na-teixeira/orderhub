@@ -1,6 +1,7 @@
 package com.orderhub.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,7 +41,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(BEARER_PREFIX.length());
-        Claims claims = jwtService.parseClaims(token);
+        Claims claims;
+        try {
+            claims = jwtService.parseClaims(token);
+        } catch (JwtException ex) {
+            // expired, tampered or malformed: carry on unauthenticated, so protected endpoints answer 401
+            log.debug("Rejected JWT for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+            filterChain.doFilter(request, response);
+            return;
+        }
         String email = claims.getSubject();
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {

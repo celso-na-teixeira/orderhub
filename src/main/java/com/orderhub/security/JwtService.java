@@ -2,11 +2,8 @@ package com.orderhub.security;
 
 import com.orderhub.domain.User;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +13,6 @@ import java.util.Date;
 
 @Service
 public class JwtService {
-
-    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
     private final SecretKey signingKey;
     private final int expirationMinutes;
@@ -42,17 +37,11 @@ public class JwtService {
     }
 
     public Claims parseClaims(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith(signingKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-        } catch (ExpiredJwtException ex) {
-            // Clients refresh proactively; tolerate tokens that expired while a request was in flight.
-            log.debug("JWT for {} expired at {}", ex.getClaims().getSubject(), ex.getClaims().getExpiration());
-            return ex.getClaims();
-        }
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public String extractUsername(String token) {
