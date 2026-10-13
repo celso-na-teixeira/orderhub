@@ -27,6 +27,25 @@ class ProductApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void catalogueCanBeSearchedByNameIgnoringCase() throws Exception {
+        mockMvc.perform(get("/api/products").param("name", "chef's KNIFE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].sku").value("KIT-3002"));
+    }
+
+    @Test
+    void catalogueCanBeFilteredByPriceRange() throws Exception {
+        // kitchen prices: 22.50, 34.99, 45.00, 59.90, 399.00 - both bounds are inclusive
+        mockMvc.perform(get("/api/products")
+                        .param("category", "KITCHEN")
+                        .param("minPrice", "34.99")
+                        .param("maxPrice", "59.90"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(3));
+    }
+
+    @Test
     void customersCannotCreateProducts() throws Exception {
         String token = tokenFor("carol@example.com");
 

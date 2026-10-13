@@ -15,6 +15,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,12 +47,32 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
     }
 
+    /**
+     * Uncached read for responses that show stock: availability changes without the product itself being updated.
+     */
+    @Transactional(readOnly = true)
+    public Product getProductWithStock(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+    }
+
     @Transactional(readOnly = true)
     public Page<Product> search(String name, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
-        if (name == null && category == null) {
-            return productRepository.findByActiveTrue(pageable);
+        Specification<Product> spec = (root, query, cb) -> cb.isTrue(root.get("active"));
+        if (name != null && !name.isBlank()) {
+            String pattern = "%" + name.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), pattern));
         }
-        return productRepository.findByNameContainingAndCategoryAndActiveTrue(name, category, pageable);
+        if (category != null && !category.isBlank()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("category"), category));
+        }
+        if (minPrice != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("price"), minPrice));
+        }
+        if (maxPrice != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+        }
+        return productRepository.findAll(spec, pageable);
     }
 
     public Product create(CreateProductRequest request) {

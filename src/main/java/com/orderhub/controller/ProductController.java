@@ -53,7 +53,7 @@ public class ProductController {
 
     @GetMapping("/{id}")
     public ProductResponse get(@PathVariable Long id) {
-        return productMapper.toResponse(productService.getProduct(id));
+        return productMapper.toResponse(productService.getProductWithStock(id));
     }
 
     @PostMapping
