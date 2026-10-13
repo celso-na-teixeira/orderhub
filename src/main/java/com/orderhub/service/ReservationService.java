@@ -57,7 +57,7 @@ public class ReservationService {
     @Scheduled(fixedDelayString = "${app.reservation.cleanup-interval-ms:60000}")
     public void expireStaleReservations() {
         List<Reservation> stale = reservationRepository
-                .findByStatusAndExpiresAtBefore(ReservationStatus.ACTIVE, LocalDateTime.now());
+                .findByStatusAndExpiresAtBefore(ReservationStatus.ACTIVE, LocalDateTime.now(ZoneOffset.UTC));
         stale.forEach(r -> r.setStatus(ReservationStatus.EXPIRED));
         if (!stale.isEmpty()) {
             log.info("Expired {} stale reservations", stale.size());

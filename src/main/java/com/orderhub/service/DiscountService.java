@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 
@@ -54,7 +55,7 @@ public class DiscountService {
         Discount discount = discountRepository.findByCodeIgnoreCase(code.trim())
                 .orElseThrow(() -> new BusinessRuleException("Unknown discount code: " + code));
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         if (!discount.isActive()) {
             throw new BusinessRuleException("Discount " + code + " is no longer active");
         }

@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -23,6 +24,6 @@ public class OrderNumberGenerator {
 
     public String next() {
         Long sequence = jdbcTemplate.queryForObject("select nextval('order_number_seq')", Long.class);
-        return "ORD-" + LocalDate.now().format(DATE_FORMAT) + "-" + String.format("%05d", sequence);
+        return "ORD-" + LocalDate.now(ZoneOffset.UTC).format(DATE_FORMAT) + "-" + String.format("%05d", sequence);
     }
 }
