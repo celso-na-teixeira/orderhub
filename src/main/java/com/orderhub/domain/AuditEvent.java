@@ -7,12 +7,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "audit_events")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class AuditEvent {
 
     @Id
@@ -35,9 +40,6 @@ public class AuditEvent {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected AuditEvent() {
-    }
-
     public AuditEvent(String entityType, Long entityId, String action, String actor, String details) {
         this.entityType = entityType;
         this.entityId = entityId;
@@ -49,33 +51,5 @@ public class AuditEvent {
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now(ZoneOffset.UTC);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEntityType() {
-        return entityType;
-    }
-
-    public Long getEntityId() {
-        return entityId;
-    }
-
-    public String getAction() {
-        return action;
-    }
-
-    public String getActor() {
-        return actor;
-    }
-
-    public String getDetails() {
-        return details;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

@@ -4,8 +4,8 @@ import com.orderhub.config.ReservationProperties;
 import com.orderhub.domain.Reservation;
 import com.orderhub.domain.ReservationStatus;
 import com.orderhub.repository.ReservationRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,17 +16,12 @@ import java.util.List;
 
 @Service
 @Transactional
+@Slf4j
+@RequiredArgsConstructor
 public class ReservationService {
-
-    private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
 
     private final ReservationRepository reservationRepository;
     private final ReservationProperties properties;
-
-    public ReservationService(ReservationRepository reservationRepository, ReservationProperties properties) {
-        this.reservationRepository = reservationRepository;
-        this.properties = properties;
-    }
 
     public Reservation create(Long orderId, Long productId, int quantity) {
         LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plus(properties.getTtl());

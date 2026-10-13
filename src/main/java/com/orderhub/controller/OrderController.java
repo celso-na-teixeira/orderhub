@@ -13,6 +13,7 @@ import com.orderhub.service.OrderService;
 import com.orderhub.service.RefundService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,19 +39,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/orders")
 @Tag(name = "Orders")
+@RequiredArgsConstructor
 public class OrderController {
 
     private final OrderService orderService;
     private final RefundService refundService;
     private final OrderMapper orderMapper;
-
-    public OrderController(OrderService orderService,
-                           RefundService refundService,
-                           OrderMapper orderMapper) {
-        this.orderService = orderService;
-        this.refundService = refundService;
-        this.orderMapper = orderMapper;
-    }
 
     @PostMapping
     public ResponseEntity<OrderResponse> create(@Valid @RequestBody CreateOrderRequest request,

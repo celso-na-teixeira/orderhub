@@ -6,6 +6,7 @@ import com.orderhub.security.AppUserDetails;
 import com.orderhub.service.PaymentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,13 +22,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/orders/{orderId}/payments")
 @Tag(name = "Payments")
+@RequiredArgsConstructor
 public class PaymentController {
 
     private final PaymentService paymentService;
-
-    public PaymentController(PaymentService paymentService) {
-        this.paymentService = paymentService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

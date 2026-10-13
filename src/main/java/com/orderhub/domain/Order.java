@@ -16,6 +16,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,6 +29,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "orders")
+@Getter
 public class Order {
 
     @Id
@@ -34,14 +37,17 @@ public class Order {
     private Long id;
 
     @Column(name = "order_number", nullable = false, unique = true)
+    @Setter
     private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "customer_id")
+    @Setter
     private Customer customer;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Setter
     private OrderStatus status;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -60,6 +66,7 @@ public class Order {
     private String discountCode;
 
     @Column(name = "idempotency_key")
+    @Setter
     private String idempotencyKey;
 
     @Version
@@ -108,71 +115,7 @@ public class Order {
         this.total = subtotal.subtract(discountAmount);
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(String orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-
-    public Customer getCustomer() {
-        return customer;
-    }
-
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
-
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(OrderStatus status) {
-        this.status = status;
-    }
-
     public Set<OrderItem> getItems() {
         return Collections.unmodifiableSet(items);
-    }
-
-    public BigDecimal getSubtotal() {
-        return subtotal;
-    }
-
-    public BigDecimal getDiscountAmount() {
-        return discountAmount;
-    }
-
-    public BigDecimal getTotal() {
-        return total;
-    }
-
-    public String getDiscountCode() {
-        return discountCode;
-    }
-
-    public String getIdempotencyKey() {
-        return idempotencyKey;
-    }
-
-    public void setIdempotencyKey(String idempotencyKey) {
-        this.idempotencyKey = idempotencyKey;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
     }
 }

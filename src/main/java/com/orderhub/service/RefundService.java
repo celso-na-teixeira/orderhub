@@ -9,26 +9,20 @@ import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.repository.PaymentRepository;
 import com.orderhub.security.CurrentUser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
+@Slf4j
+@RequiredArgsConstructor
 public class RefundService {
-
-    private static final Logger log = LoggerFactory.getLogger(RefundService.class);
 
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final AuditService auditService;
-
-    public RefundService(OrderRepository orderRepository, PaymentRepository paymentRepository, AuditService auditService) {
-        this.orderRepository = orderRepository;
-        this.paymentRepository = paymentRepository;
-        this.auditService = auditService;
-    }
 
     public Order refund(Long orderId, String reason) {
         Order order = orderRepository.findById(orderId)

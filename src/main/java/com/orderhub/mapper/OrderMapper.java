@@ -6,51 +6,32 @@ import com.orderhub.domain.Payment;
 import com.orderhub.dto.OrderItemResponse;
 import com.orderhub.dto.OrderResponse;
 import com.orderhub.dto.PaymentResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
-@Component
-public class OrderMapper {
+@Mapper
+public interface OrderMapper {
 
-    public OrderResponse toResponse(Order order) {
-        List<OrderItemResponse> items = order.getItems().stream()
+    @Mapping(target = "customerId", source = "customer.id")
+    OrderResponse toResponse(Order order);
+
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "sku", source = "product.sku")
+    @Mapping(target = "productName", source = "product.name")
+    OrderItemResponse toItemResponse(OrderItem item);
+
+    @Mapping(target = "orderId", source = "order.id")
+    PaymentResponse toPaymentResponse(Payment payment);
+
+    // picked up by toResponse for the order lines, so they always come back in SKU order
+    default List<OrderItemResponse> toItemResponses(Set<OrderItem> items) {
+        return items.stream()
                 .sorted(Comparator.comparing(item -> item.getProduct().getSku()))
                 .map(this::toItemResponse)
                 .toList();
-
-        return new OrderResponse(
-                order.getId(),
-                order.getOrderNumber(),
-                order.getCustomer().getId(),
-                order.getStatus(),
-                items,
-                order.getSubtotal(),
-                order.getDiscountAmount(),
-                order.getTotal(),
-                order.getDiscountCode(),
-                order.getCreatedAt(),
-                order.getUpdatedAt());
-    }
-
-    public OrderItemResponse toItemResponse(OrderItem item) {
-        return new OrderItemResponse(
-                item.getProduct().getId(),
-                item.getProduct().getSku(),
-                item.getProduct().getName(),
-                item.getQuantity(),
-                item.getUnitPrice(),
-                item.getLineTotal());
-    }
-
-    public PaymentResponse toPaymentResponse(Payment payment) {
-        return new PaymentResponse(
-                payment.getId(),
-                payment.getOrder().getId(),
-                payment.getAmount(),
-                payment.getStatus(),
-                payment.getProviderReference(),
-                payment.getCreatedAt());
     }
 }

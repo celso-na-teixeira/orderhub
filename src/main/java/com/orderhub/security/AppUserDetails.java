@@ -2,6 +2,7 @@ package com.orderhub.security;
 
 import com.orderhub.domain.Role;
 import com.orderhub.domain.User;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,9 +12,11 @@ import java.util.List;
 
 public class AppUserDetails implements UserDetails {
 
+    @Getter
     private final Long id;
     private final String email;
     private final String passwordHash;
+    @Getter
     private final Role role;
     private final boolean enabled;
 
@@ -23,14 +26,6 @@ public class AppUserDetails implements UserDetails {
         this.passwordHash = user.getPasswordHash();
         this.role = user.getRole();
         this.enabled = user.isEnabled();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Role getRole() {
-        return role;
     }
 
     public boolean isCustomer() {

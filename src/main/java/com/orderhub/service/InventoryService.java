@@ -4,8 +4,8 @@ import com.orderhub.domain.InventoryItem;
 import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.InventoryRepository;
 import jakarta.persistence.EntityManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,17 +13,12 @@ import java.util.List;
 
 @Service
 @Transactional
+@Slf4j
+@RequiredArgsConstructor
 public class InventoryService {
-
-    private static final Logger log = LoggerFactory.getLogger(InventoryService.class);
 
     private final InventoryRepository inventoryRepository;
     private final EntityManager entityManager;
-
-    public InventoryService(InventoryRepository inventoryRepository, EntityManager entityManager) {
-        this.inventoryRepository = inventoryRepository;
-        this.entityManager = entityManager;
-    }
 
     @Transactional(readOnly = true)
     public InventoryItem getByProductId(Long productId) {

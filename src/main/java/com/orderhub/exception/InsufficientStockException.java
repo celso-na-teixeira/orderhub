@@ -1,5 +1,8 @@
 package com.orderhub.exception;
 
+import lombok.Getter;
+
+@Getter
 public class InsufficientStockException extends RuntimeException {
 
     private final Long productId;
@@ -11,17 +14,5 @@ public class InsufficientStockException extends RuntimeException {
         this.productId = productId;
         this.requested = requested;
         this.available = available;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public int getRequested() {
-        return requested;
-    }
-
-    public int getAvailable() {
-        return available;
     }
 }

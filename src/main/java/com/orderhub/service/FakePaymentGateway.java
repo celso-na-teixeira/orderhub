@@ -1,7 +1,6 @@
 package com.orderhub.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -12,9 +11,8 @@ import java.util.UUID;
  * {@code tok_decline} are declined; everything else succeeds after a short delay.
  */
 @Component
+@Slf4j
 public class FakePaymentGateway implements PaymentGateway {
-
-    private static final Logger log = LoggerFactory.getLogger(FakePaymentGateway.class);
 
     @Override
     public GatewayResult charge(String orderReference, BigDecimal amount, String cardToken) {

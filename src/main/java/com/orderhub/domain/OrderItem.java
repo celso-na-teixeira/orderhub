@@ -10,11 +10,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "order_items")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class OrderItem {
 
     @Id
@@ -23,6 +29,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id")
+    @Setter(AccessLevel.PACKAGE)
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = CascadeType.MERGE)
@@ -38,9 +45,6 @@ public class OrderItem {
     @Column(name = "line_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal lineTotal;
 
-    protected OrderItem() {
-    }
-
     public OrderItem(Product product, int quantity, BigDecimal unitPrice) {
         if (quantity < 1) {
             throw new IllegalArgumentException("Order line quantity must be at least 1");
@@ -49,34 +53,6 @@ public class OrderItem {
         this.quantity = quantity;
         this.unitPrice = unitPrice;
         this.lineTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Order getOrder() {
-        return order;
-    }
-
-    void setOrder(Order order) {
-        this.order = order;
-    }
-
-    public Product getProduct() {
-        return product;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public BigDecimal getUnitPrice() {
-        return unitPrice;
-    }
-
-    public BigDecimal getLineTotal() {
-        return lineTotal;
     }
 
     @Override

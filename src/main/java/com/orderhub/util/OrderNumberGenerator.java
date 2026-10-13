@@ -1,5 +1,6 @@
 package com.orderhub.util;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -12,15 +13,12 @@ import java.time.format.DateTimeFormatter;
  * The running number comes from a database sequence, so it is unique across restarts and application instances.
  */
 @Component
+@RequiredArgsConstructor
 public class OrderNumberGenerator {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final JdbcTemplate jdbcTemplate;
-
-    public OrderNumberGenerator(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
 
     public String next() {
         Long sequence = jdbcTemplate.queryForObject("select nextval('order_number_seq')", Long.class);

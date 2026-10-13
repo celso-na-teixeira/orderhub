@@ -7,6 +7,7 @@ import com.orderhub.mapper.DiscountMapper;
 import com.orderhub.service.DiscountService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,15 +26,11 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/discounts")
 @Tag(name = "Discounts")
+@RequiredArgsConstructor
 public class DiscountController {
 
     private final DiscountService discountService;
     private final DiscountMapper discountMapper;
-
-    public DiscountController(DiscountService discountService, DiscountMapper discountMapper) {
-        this.discountService = discountService;
-        this.discountMapper = discountMapper;
-    }
 
     @GetMapping
     @PreAuthorize("hasAuthority('ADMIN')")

@@ -9,12 +9,18 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "reservations")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Reservation {
 
     @Id
@@ -32,6 +38,7 @@ public class Reservation {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Setter
     private ReservationStatus status;
 
     @Column(name = "expires_at", nullable = false)
@@ -39,9 +46,6 @@ public class Reservation {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    protected Reservation() {
-    }
 
     public Reservation(Long orderId, Long productId, int quantity, LocalDateTime expiresAt) {
         this.orderId = orderId;
@@ -58,37 +62,5 @@ public class Reservation {
 
     public boolean isExpired(LocalDateTime now) {
         return expiresAt.isBefore(now);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public ReservationStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(ReservationStatus status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getExpiresAt() {
-        return expiresAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

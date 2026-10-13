@@ -8,8 +8,8 @@ import com.orderhub.dto.SalesSummaryResponse;
 import com.orderhub.dto.TopProductResponse;
 import com.orderhub.mapper.InventoryMapper;
 import com.orderhub.repository.OrderRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,21 +21,13 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
+@Slf4j
+@RequiredArgsConstructor
 public class ReportService {
-
-    private static final Logger log = LoggerFactory.getLogger(ReportService.class);
 
     private final OrderRepository orderRepository;
     private final InventoryService inventoryService;
     private final InventoryMapper inventoryMapper;
-
-    public ReportService(OrderRepository orderRepository,
-                         InventoryService inventoryService,
-                         InventoryMapper inventoryMapper) {
-        this.orderRepository = orderRepository;
-        this.inventoryService = inventoryService;
-        this.inventoryMapper = inventoryMapper;
-    }
 
     public SalesSummaryResponse salesSummary(LocalDate from, LocalDate to) {
         List<Order> orders = orderRepository.findByCreatedAtBetween(from.atStartOfDay(), to.atStartOfDay());

@@ -7,6 +7,7 @@ import com.orderhub.mapper.InventoryMapper;
 import com.orderhub.service.InventoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,15 +23,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/inventory")
 @Tag(name = "Inventory")
+@RequiredArgsConstructor
 public class InventoryController {
 
     private final InventoryService inventoryService;
     private final InventoryMapper inventoryMapper;
-
-    public InventoryController(InventoryService inventoryService, InventoryMapper inventoryMapper) {
-        this.inventoryService = inventoryService;
-        this.inventoryMapper = inventoryMapper;
-    }
 
     @GetMapping("/{productId}")
     public InventoryResponse get(@PathVariable Long productId) {

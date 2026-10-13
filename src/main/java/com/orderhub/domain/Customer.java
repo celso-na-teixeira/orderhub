@@ -11,12 +11,18 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "customers")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Customer {
 
     @Id
@@ -25,23 +31,24 @@ public class Customer {
 
     @OneToOne
     @JoinColumn(name = "user_id")
+    @Getter(AccessLevel.NONE)
     private User user;
 
     @Column(nullable = false)
+    @Setter
     private String name;
 
     @Column(nullable = false)
+    @Setter
     private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Setter
     private CustomerTier tier = CustomerTier.STANDARD;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    protected Customer() {
-    }
 
     public Customer(User user, String name, String email) {
         this.user = user;
@@ -54,43 +61,11 @@ public class Customer {
         createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() {
-        return id;
-    }
-
     public Long getUserId() {
         return user != null ? user.getId() : null;
     }
 
     public boolean belongsTo(Long userId) {
         return user != null && user.getId().equals(userId);
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public CustomerTier getTier() {
-        return tier;
-    }
-
-    public void setTier(CustomerTier tier) {
-        this.tier = tier;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

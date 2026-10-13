@@ -12,6 +12,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,6 +22,8 @@ import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "payments")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Payment {
 
     @Id
@@ -42,9 +47,6 @@ public class Payment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected Payment() {
-    }
-
     public Payment(Order order, BigDecimal amount, PaymentStatus status, String providerReference) {
         this.order = order;
         this.amount = amount;
@@ -55,29 +57,5 @@ public class Payment {
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now(ZoneOffset.UTC);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Order getOrder() {
-        return order;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public PaymentStatus getStatus() {
-        return status;
-    }
-
-    public String getProviderReference() {
-        return providerReference;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

@@ -2,18 +2,10 @@ package com.orderhub.mapper;
 
 import com.orderhub.domain.Customer;
 import com.orderhub.dto.CustomerResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
 
-@Component
-public class CustomerMapper {
+@Mapper
+public interface CustomerMapper {
 
-    public CustomerResponse toResponse(Customer customer) {
-        return new CustomerResponse(
-                customer.getId(),
-                customer.getUserId(),
-                customer.getName(),
-                customer.getEmail(),
-                customer.getTier(),
-                customer.getCreatedAt());
-    }
+    CustomerResponse toResponse(Customer customer);
 }

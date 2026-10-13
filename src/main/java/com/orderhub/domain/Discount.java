@@ -8,16 +8,22 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "discounts")
+@Getter
+@Setter
 public class Discount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     private Long id;
 
     @Column(nullable = false, unique = true)
@@ -49,88 +55,4 @@ public class Discount {
 
     @Column(nullable = false)
     private boolean active = true;
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getCode() {
-        return code;
-    }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public DiscountType getType() {
-        return type;
-    }
-
-    public void setType(DiscountType type) {
-        this.type = type;
-    }
-
-    public BigDecimal getValue() {
-        return value;
-    }
-
-    public void setValue(BigDecimal value) {
-        this.value = value;
-    }
-
-    public BigDecimal getMinOrderAmount() {
-        return minOrderAmount;
-    }
-
-    public void setMinOrderAmount(BigDecimal minOrderAmount) {
-        this.minOrderAmount = minOrderAmount;
-    }
-
-    public LocalDateTime getValidFrom() {
-        return validFrom;
-    }
-
-    public void setValidFrom(LocalDateTime validFrom) {
-        this.validFrom = validFrom;
-    }
-
-    public LocalDateTime getValidUntil() {
-        return validUntil;
-    }
-
-    public void setValidUntil(LocalDateTime validUntil) {
-        this.validUntil = validUntil;
-    }
-
-    public Integer getMaxUses() {
-        return maxUses;
-    }
-
-    public void setMaxUses(Integer maxUses) {
-        this.maxUses = maxUses;
-    }
-
-    public int getUsedCount() {
-        return usedCount;
-    }
-
-    public void setUsedCount(int usedCount) {
-        this.usedCount = usedCount;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
 }

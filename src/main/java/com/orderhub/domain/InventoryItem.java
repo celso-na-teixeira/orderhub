@@ -13,12 +13,17 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "inventory_items")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class InventoryItem {
 
     @Id
@@ -37,9 +42,6 @@ public class InventoryItem {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    protected InventoryItem() {
-    }
 
     public InventoryItem(Product product, int quantityOnHand) {
         this.product = product;
@@ -115,25 +117,5 @@ public class InventoryItem {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Product getProduct() {
-        return product;
-    }
-
-    public int getQuantityOnHand() {
-        return quantityOnHand;
-    }
-
-    public int getQuantityReserved() {
-        return quantityReserved;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
     }
 }

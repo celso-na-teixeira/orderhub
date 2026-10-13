@@ -3,17 +3,15 @@ package com.orderhub.security;
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
 import com.orderhub.repository.CustomerRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class OrderAccessPolicy {
 
     private final CustomerRepository customerRepository;
-
-    public OrderAccessPolicy(CustomerRepository customerRepository) {
-        this.customerRepository = customerRepository;
-    }
 
     public void assertCanAccess(Order order, AppUserDetails currentUser) {
         if (currentUser.isStaffOrAdmin()) {

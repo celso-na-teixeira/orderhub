@@ -7,6 +7,7 @@ import com.orderhub.mapper.ProductMapper;
 import com.orderhub.service.ProductService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -29,15 +30,11 @@ import java.net.URI;
 @RestController
 @RequestMapping("/api/products")
 @Tag(name = "Products")
+@RequiredArgsConstructor
 public class ProductController {
 
     private final ProductService productService;
     private final ProductMapper productMapper;
-
-    public ProductController(ProductService productService, ProductMapper productMapper) {
-        this.productService = productService;
-        this.productMapper = productMapper;
-    }
 
     @GetMapping
     public Page<ProductResponse> search(@RequestParam(required = false) String name,

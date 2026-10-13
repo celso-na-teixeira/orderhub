@@ -9,8 +9,8 @@ import com.orderhub.exception.ConflictException;
 import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.DiscountRepository;
 import com.orderhub.util.MoneyUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,17 +22,12 @@ import java.util.Locale;
 
 @Service
 @Transactional
+@Slf4j
+@RequiredArgsConstructor
 public class DiscountService {
-
-    private static final Logger log = LoggerFactory.getLogger(DiscountService.class);
 
     private final DiscountRepository discountRepository;
     private final DiscountCalculator discountCalculator;
-
-    public DiscountService(DiscountRepository discountRepository, DiscountCalculator discountCalculator) {
-        this.discountRepository = discountRepository;
-        this.discountCalculator = discountCalculator;
-    }
 
     /**
      * Resolves a discount code and verifies that it can be used for an order with the given subtotal.

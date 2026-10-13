@@ -1,10 +1,14 @@
 package com.orderhub.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 
 @ConfigurationProperties(prefix = "app.reservation")
+@Getter
+@Setter
 public class ReservationProperties {
 
     /**
@@ -16,20 +20,4 @@ public class ReservationProperties {
      * Interval between runs of the reservation clean-up job, in milliseconds.
      */
     private long cleanupIntervalMs = 60_000;
-
-    public Duration getTtl() {
-        return ttl;
-    }
-
-    public void setTtl(Duration ttl) {
-        this.ttl = ttl;
-    }
-
-    public long getCleanupIntervalMs() {
-        return cleanupIntervalMs;
-    }
-
-    public void setCleanupIntervalMs(long cleanupIntervalMs) {
-        this.cleanupIntervalMs = cleanupIntervalMs;
-    }
 }

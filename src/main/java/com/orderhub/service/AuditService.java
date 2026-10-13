@@ -4,8 +4,8 @@ import com.orderhub.domain.AuditEvent;
 import com.orderhub.domain.Order;
 import com.orderhub.dto.AuditEventResponse;
 import com.orderhub.repository.AuditEventRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -15,15 +15,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class AuditService {
 
-    private static final Logger log = LoggerFactory.getLogger(AuditService.class);
-
     private final AuditEventRepository auditEventRepository;
-
-    public AuditService(AuditEventRepository auditEventRepository) {
-        this.auditEventRepository = auditEventRepository;
-    }
 
     /**
      * Records an audit event without slowing down the calling request.

@@ -3,26 +3,20 @@ package com.orderhub.mapper;
 import com.orderhub.domain.InventoryItem;
 import com.orderhub.dto.InventoryResponse;
 import com.orderhub.dto.LowStockResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-@Component
-public class InventoryMapper {
+@Mapper
+public interface InventoryMapper {
 
-    public InventoryResponse toResponse(InventoryItem item) {
-        return new InventoryResponse(
-                item.getProduct().getId(),
-                item.getProduct().getSku(),
-                item.getQuantityOnHand(),
-                item.getQuantityReserved(),
-                item.getAvailableQuantity(),
-                item.getUpdatedAt());
-    }
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "sku", source = "product.sku")
+    @Mapping(target = "available", source = "availableQuantity")
+    InventoryResponse toResponse(InventoryItem item);
 
-    public LowStockResponse toLowStock(InventoryItem item) {
-        return new LowStockResponse(
-                item.getProduct().getId(),
-                item.getProduct().getSku(),
-                item.getProduct().getName(),
-                item.getAvailableQuantity());
-    }
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "sku", source = "product.sku")
+    @Mapping(target = "name", source = "product.name")
+    @Mapping(target = "available", source = "availableQuantity")
+    LowStockResponse toLowStock(InventoryItem item);
 }

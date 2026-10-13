@@ -10,6 +10,10 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,6 +21,8 @@ import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "products")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Product {
 
     @Id
@@ -27,16 +33,20 @@ public class Product {
     private String sku;
 
     @Column(nullable = false)
+    @Setter
     private String name;
 
+    @Setter
     private String description;
 
+    @Setter
     private String category;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
     @Column(nullable = false)
+    @Setter
     private boolean active = true;
 
     @Version
@@ -50,9 +60,6 @@ public class Product {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    protected Product() {
-    }
 
     public Product(String sku, String name, String category, BigDecimal price) {
         if (sku == null || sku.isBlank()) {
@@ -77,42 +84,6 @@ public class Product {
         updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getSku() {
-        return sku;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
     public void setPrice(BigDecimal price) {
         if (price == null || price.signum() <= 0) {
             throw new IllegalArgumentException("Product price must be positive");
@@ -120,32 +91,8 @@ public class Product {
         this.price = price;
     }
 
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public InventoryItem getInventory() {
-        return inventory;
-    }
-
     // called by InventoryItem when the stock record is created for this product
     void setInventory(InventoryItem inventory) {
         this.inventory = inventory;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
     }
 }

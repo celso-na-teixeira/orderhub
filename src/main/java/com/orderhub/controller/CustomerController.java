@@ -7,6 +7,7 @@ import com.orderhub.security.AppUserDetails;
 import com.orderhub.service.CustomerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,15 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/customers")
 @Tag(name = "Customers")
+@RequiredArgsConstructor
 public class CustomerController {
 
     private final CustomerService customerService;
     private final CustomerMapper customerMapper;
-
-    public CustomerController(CustomerService customerService, CustomerMapper customerMapper) {
-        this.customerService = customerService;
-        this.customerMapper = customerMapper;
-    }
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'STAFF')")

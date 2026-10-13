@@ -16,8 +16,8 @@ import com.orderhub.repository.CustomerRepository;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.security.AppUserDetails;
 import com.orderhub.util.OrderNumberGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,9 +36,9 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@Slf4j
+@RequiredArgsConstructor
 public class OrderService {
-
-    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private final OrderRepository orderRepository;
     private final CustomerRepository customerRepository;
@@ -49,26 +49,6 @@ public class OrderService {
     private final AuditService auditService;
     private final OrderNumberGenerator orderNumberGenerator;
     private final OrderAccessPolicy orderAccessPolicy;
-
-    public OrderService(OrderRepository orderRepository,
-                        CustomerRepository customerRepository,
-                        ProductService productService,
-                        InventoryService inventoryService,
-                        ReservationService reservationService,
-                        PricingService pricingService,
-                        AuditService auditService,
-                        OrderNumberGenerator orderNumberGenerator,
-                        OrderAccessPolicy orderAccessPolicy) {
-        this.orderRepository = orderRepository;
-        this.customerRepository = customerRepository;
-        this.productService = productService;
-        this.inventoryService = inventoryService;
-        this.reservationService = reservationService;
-        this.pricingService = pricingService;
-        this.auditService = auditService;
-        this.orderNumberGenerator = orderNumberGenerator;
-        this.orderAccessPolicy = orderAccessPolicy;
-    }
 
     public Order placeOrder(Long userId, CreateOrderRequest request, String idempotencyKey) {
         boolean idempotent = idempotencyKey != null && !idempotencyKey.isBlank();

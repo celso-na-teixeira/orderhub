@@ -14,8 +14,8 @@ import com.orderhub.mapper.OrderMapper;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.repository.PaymentRepository;
 import com.orderhub.security.AppUserDetails;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +24,9 @@ import java.util.List;
 
 @Service
 @Transactional
+@Slf4j
+@RequiredArgsConstructor
 public class PaymentService {
-
-    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
@@ -36,24 +36,6 @@ public class PaymentService {
     private final AuditService auditService;
     private final OrderMapper orderMapper;
     private final OrderAccessPolicy orderAccessPolicy;
-
-    public PaymentService(OrderRepository orderRepository,
-                          PaymentRepository paymentRepository,
-                          PaymentGateway paymentGateway,
-                          InventoryService inventoryService,
-                          ReservationService reservationService,
-                          AuditService auditService,
-                          OrderMapper orderMapper,
-                          OrderAccessPolicy orderAccessPolicy) {
-        this.orderRepository = orderRepository;
-        this.paymentRepository = paymentRepository;
-        this.paymentGateway = paymentGateway;
-        this.inventoryService = inventoryService;
-        this.reservationService = reservationService;
-        this.auditService = auditService;
-        this.orderMapper = orderMapper;
-        this.orderAccessPolicy = orderAccessPolicy;
-    }
 
     /**
      * The payment record, the stock commitment and the status change are written in one transaction (BR-43).

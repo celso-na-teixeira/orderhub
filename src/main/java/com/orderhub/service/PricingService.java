@@ -2,6 +2,7 @@ package com.orderhub.service;
 
 import com.orderhub.domain.Discount;
 import com.orderhub.domain.Order;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -9,15 +10,11 @@ import java.math.BigDecimal;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class PricingService {
 
     private final DiscountService discountService;
     private final DiscountCalculator discountCalculator;
-
-    public PricingService(DiscountService discountService, DiscountCalculator discountCalculator) {
-        this.discountService = discountService;
-        this.discountCalculator = discountCalculator;
-    }
 
     /**
      * Calculates subtotal, discount and total for the order and applies them to it.
