@@ -78,5 +78,4 @@ Errors do not go through the return type. Throw an exception (`ResourceNotFoundE
 
 ## Known deviations (as of 2026-10-12)
 
-- `GET /orders/{id}/cancel` changes state, so it should be a `POST`. The README lists it as `POST /orders/{id}/cancel`.
 - `InventoryController` has one method that wraps its result in `ResponseEntity.ok(...)`, which is the same as returning the DTO directly.

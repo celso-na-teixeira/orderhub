@@ -9,6 +9,7 @@ import com.orderhub.domain.Role;
 import com.orderhub.domain.User;
 import com.orderhub.dto.CreateOrderRequest;
 import com.orderhub.dto.OrderLineRequest;
+import com.orderhub.exception.InvalidOrderStateException;
 import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.CustomerRepository;
 import com.orderhub.repository.OrderRepository;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -142,6 +145,57 @@ class OrderServiceTest {
         assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(inventoryService).restock(any(), eq(2));
         verify(inventoryService, never()).release(any(), anyInt());
+    }
+
+    @Test
+    void cancelIsRejectedWhenCallerMayNotAccessTheOrder() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PENDING);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        AppUserDetails customer = new AppUserDetails(user(3L, Role.CUSTOMER));
+        doThrow(new AccessDeniedException("Order does not belong to current customer"))
+                .when(orderAccessPolicy).assertCanAccess(order, customer);
+
+        assertThatThrownBy(() -> orderService.cancelOrder(10L, customer))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        verify(inventoryService, never()).release(any(), anyInt());
+    }
+
+    @Test
+    void shippedOrderCannotBeCancelled() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.SHIPPED);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.cancelOrder(10L, new AppUserDetails(user(2L, Role.STAFF))))
+                .isInstanceOf(InvalidOrderStateException.class);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.SHIPPED);
+        verify(inventoryService, never()).restock(any(), anyInt());
+        verify(inventoryService, never()).release(any(), anyInt());
+    }
+
+    @Test
+    void cancelledOrderCannotBeCancelledAgain() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.CANCELLED);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.cancelOrder(10L, new AppUserDetails(user(2L, Role.STAFF))))
+                .isInstanceOf(InvalidOrderStateException.class);
+        verify(inventoryService, never()).restock(any(), anyInt());
+        verify(inventoryService, never()).release(any(), anyInt());
+    }
+
+    @Test
+    void cancelThrowsResourceNotFoundWhenOrderDoesNotExist() {
+        when(orderRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.cancelOrder(10L, new AppUserDetails(user(2L, Role.STAFF))))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

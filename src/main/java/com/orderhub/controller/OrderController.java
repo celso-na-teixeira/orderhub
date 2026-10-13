@@ -91,7 +91,7 @@ public class OrderController {
         return orderMapper.toResponse(orderService.replaceItems(id, request.items(), user));
     }
 
-    @GetMapping("/{id}/cancel")
+    @PostMapping("/{id}/cancel")
     public OrderResponse cancel(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails user) {
         return orderMapper.toResponse(orderService.cancelOrder(id, user));
     }

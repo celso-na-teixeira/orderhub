@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,9 +145,7 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
 
-        if (currentUser.isCustomer() && !order.getCustomer().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("You can only cancel your own orders");
-        }
+        orderAccessPolicy.assertCanAccess(order, currentUser);
         if (!order.getStatus().canTransitionTo(OrderStatus.CANCELLED)) {
             throw new InvalidOrderStateException(orderId, order.getStatus(), OrderStatus.CANCELLED);
         }
