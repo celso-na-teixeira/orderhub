@@ -9,7 +9,6 @@ import com.orderhub.dto.ReplaceOrderItemsRequest;
 import com.orderhub.dto.UpdateOrderStatusRequest;
 import com.orderhub.mapper.OrderMapper;
 import com.orderhub.security.AppUserDetails;
-import com.orderhub.service.AuditService;
 import com.orderhub.service.OrderService;
 import com.orderhub.service.RefundService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,16 +42,13 @@ public class OrderController {
 
     private final OrderService orderService;
     private final RefundService refundService;
-    private final AuditService auditService;
     private final OrderMapper orderMapper;
 
     public OrderController(OrderService orderService,
                            RefundService refundService,
-                           AuditService auditService,
                            OrderMapper orderMapper) {
         this.orderService = orderService;
         this.refundService = refundService;
-        this.auditService = auditService;
         this.orderMapper = orderMapper;
     }
 
@@ -71,12 +67,8 @@ public class OrderController {
                                     @RequestParam(defaultValue = "1") int page,
                                     @RequestParam(defaultValue = "20") int size,
                                     @AuthenticationPrincipal AppUserDetails user) {
-        Long effectiveCustomerId = customerId;
-        if (effectiveCustomerId == null && user.isCustomer()) {
-            effectiveCustomerId = orderService.customerIdForUser(user.getId());
-        }
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return orderService.listOrders(effectiveCustomerId, status, pageable).map(orderMapper::toResponse);
+        return orderService.listOrders(customerId, status, pageable, user).map(orderMapper::toResponse);
     }
 
     @GetMapping("/{id}")
@@ -118,7 +110,7 @@ public class OrderController {
     }
 
     @GetMapping("/{id}/history")
-    public List<AuditEventResponse> history(@PathVariable Long id) {
-        return auditService.historyFor("ORDER", id);
+    public List<AuditEventResponse> history(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails user) {
+        return orderService.historyFor(id, user);
     }
 }

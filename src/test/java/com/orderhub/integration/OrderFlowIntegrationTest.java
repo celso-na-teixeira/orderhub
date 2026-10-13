@@ -103,6 +103,66 @@ class OrderFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void customerCannotReplaceItemsOnAnotherCustomersOrder() throws Exception {
+        String carol = tokenFor("carol@example.com");
+
+        String created = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", carol)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 7, "quantity": 2}]}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long orderId = json(created).get("id").asLong();
+
+        mockMvc.perform(put("/api/orders/{id}/items", orderId)
+                        .header("Authorization", tokenFor("alice@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": [{"productId": 6, "quantity": 1}]}
+                                """))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/orders/{id}", orderId).header("Authorization", carol))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].productId").value(7))
+                .andExpect(jsonPath("$.items[0].quantity").value(2));
+    }
+
+    @Test
+    void customerCannotReadAnotherCustomersOrderHistory() throws Exception {
+        // order 1 belongs to Alice
+        mockMvc.perform(get("/api/orders/1/history").header("Authorization", tokenFor("bob@example.com")))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/orders/1/history").header("Authorization", tokenFor("alice@example.com")))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/orders/1/history").header("Authorization", tokenFor("staff@orderhub.io")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void customerCannotListAnotherCustomersOrders() throws Exception {
+        String bob = tokenFor("bob@example.com");
+        // order 1 belongs to Alice
+        long alicesCustomerId = json(mockMvc.perform(get("/api/orders/1").header("Authorization", tokenFor("alice@example.com")))
+                .andReturn().getResponse().getContentAsString()).get("customerId").asLong();
+
+        mockMvc.perform(get("/api/orders").param("customerId", String.valueOf(alicesCustomerId)).param("page", "0")
+                        .header("Authorization", bob))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/orders").param("page", "0").header("Authorization", bob))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[?(@.customerId == " + alicesCustomerId + ")]").isEmpty());
+
+        mockMvc.perform(get("/api/orders").param("customerId", String.valueOf(alicesCustomerId)).param("page", "0")
+                        .header("Authorization", tokenFor("staff@orderhub.io")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void refundAddsARefundedPaymentAndLeavesTheChargeUntouched() throws Exception {
         String token = tokenFor("alice@example.com");
         String staff = tokenFor("staff@orderhub.io");

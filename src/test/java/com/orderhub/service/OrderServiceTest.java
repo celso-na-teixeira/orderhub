@@ -21,7 +21,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -199,6 +202,76 @@ class OrderServiceTest {
     }
 
     @Test
+    void replaceItemsIsRejectedWhenCallerMayNotAccessTheOrder() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PENDING);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        AppUserDetails customer = new AppUserDetails(user(3L, Role.CUSTOMER));
+        doThrow(new AccessDeniedException("Order does not belong to current customer"))
+                .when(orderAccessPolicy).assertCanAccess(order, customer);
+
+        assertThatThrownBy(() -> orderService.replaceItems(10L, List.of(new OrderLineRequest(1L, 1)), customer))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(order.getItems()).hasSize(1);
+        verify(inventoryService, never()).reserve(anyLong(), anyInt());
+        verify(inventoryService, never()).release(any(), anyInt());
+    }
+
+    @Test
+    void customerListsOnlyTheirOwnOrders() {
+        Customer customer = customerWithId(7L);
+        when(customerRepository.findByUserId(3L)).thenReturn(Optional.of(customer));
+        Pageable pageable = PageRequest.of(0, 20);
+
+        orderService.listOrders(null, null, pageable, new AppUserDetails(user(3L, Role.CUSTOMER)));
+
+        verify(orderRepository).findWithItemsByCustomerId(7L, pageable);
+        verify(orderRepository, never()).findAll(pageable);
+    }
+
+    @Test
+    void customerCannotListAnotherCustomersOrders() {
+        Customer customer = customerWithId(7L);
+        when(customerRepository.findByUserId(3L)).thenReturn(Optional.of(customer));
+        Pageable pageable = PageRequest.of(0, 20);
+
+        assertThatThrownBy(() -> orderService.listOrders(8L, null, pageable, new AppUserDetails(user(3L, Role.CUSTOMER))))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(orderRepository, never()).findWithItemsByCustomerId(anyLong(), any());
+    }
+
+    @Test
+    void staffCanListAnyCustomersOrders() {
+        Pageable pageable = PageRequest.of(0, 20);
+
+        orderService.listOrders(8L, null, pageable, new AppUserDetails(user(2L, Role.STAFF)));
+
+        verify(orderRepository).findWithItemsByCustomerId(8L, pageable);
+    }
+
+    @Test
+    void customerCannotReadHistoryOfAnOrderTheyMayNotAccess() {
+        Order order = new Order();
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        AppUserDetails customer = new AppUserDetails(user(3L, Role.CUSTOMER));
+        doThrow(new AccessDeniedException("Order does not belong to current customer"))
+                .when(orderAccessPolicy).assertCanAccess(order, customer);
+
+        assertThatThrownBy(() -> orderService.historyFor(10L, customer))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(auditService, never()).historyFor(any(), anyLong());
+    }
+
+    @Test
+    void staffReadHistoryWithoutAnOwnershipCheck() {
+        orderService.historyFor(10L, new AppUserDetails(user(2L, Role.STAFF)));
+
+        verify(auditService).historyFor("ORDER", 10L);
+        verify(orderAccessPolicy, never()).assertCanAccess(any(), any());
+    }
+
+    @Test
     void returnsOrderWhenCallerIsAllowed() {
         Order order = new Order();
         order.setStatus(OrderStatus.PENDING);
@@ -226,6 +299,12 @@ class OrderServiceTest {
         user.setEmail("user" + id + "@example.com");
         user.setRole(role);
         return user;
+    }
+
+    private static Customer customerWithId(Long id) {
+        Customer customer = new Customer(user(3L, Role.CUSTOMER), "Alice", "alice@example.com");
+        ReflectionTestUtils.setField(customer, "id", id);
+        return customer;
     }
 
     private static Product product(String sku, String price) {

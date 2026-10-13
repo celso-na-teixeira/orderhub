@@ -6,6 +6,7 @@ import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
 import com.orderhub.domain.OrderStatus;
 import com.orderhub.domain.Product;
+import com.orderhub.dto.AuditEventResponse;
 import com.orderhub.dto.CreateOrderRequest;
 import com.orderhub.dto.OrderLineRequest;
 import com.orderhub.exception.BusinessRuleException;
@@ -19,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -124,18 +126,35 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Order> listOrders(Long customerId, OrderStatus status, Pageable pageable) {
-        if (customerId != null && status != null) {
-            return orderRepository.findByCustomerIdAndStatus(customerId, status, pageable);
+    public Page<Order> listOrders(Long customerId, OrderStatus status, Pageable pageable, AppUserDetails currentUser) {
+        Long effectiveCustomerId = customerId;
+        // customers only ever see their own orders (BR-28)
+        if (currentUser.isCustomer()) {
+            Long ownCustomerId = customerIdForUser(currentUser.getId());
+            if (customerId != null && !customerId.equals(ownCustomerId)) {
+                throw new AccessDeniedException("You can only list your own orders");
+            }
+            effectiveCustomerId = ownCustomerId;
         }
-        if (customerId != null) {
-            return orderRepository.findWithItemsByCustomerId(customerId, pageable);
+        if (effectiveCustomerId != null && status != null) {
+            return orderRepository.findByCustomerIdAndStatus(effectiveCustomerId, status, pageable);
+        }
+        if (effectiveCustomerId != null) {
+            return orderRepository.findWithItemsByCustomerId(effectiveCustomerId, pageable);
         }
         return orderRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)
-    public Long customerIdForUser(Long userId) {
+    public List<AuditEventResponse> historyFor(Long orderId, AppUserDetails currentUser) {
+        // staff can still read the history of an order that has since been deleted
+        if (currentUser.isCustomer()) {
+            getOrder(orderId, currentUser);
+        }
+        return auditService.historyFor("ORDER", orderId);
+    }
+
+    private Long customerIdForUser(Long userId) {
         return customerRepository.findByUserId(userId)
                 .map(Customer::getId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer for user", userId));
@@ -183,6 +202,7 @@ public class OrderService {
     public Order replaceItems(Long orderId, List<OrderLineRequest> lines, AppUserDetails currentUser) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
+        orderAccessPolicy.assertCanAccess(order, currentUser);
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new InvalidOrderStateException("Order " + order.getOrderNumber() + " is not pending");
         }
