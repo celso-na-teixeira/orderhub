@@ -6,6 +6,8 @@ import com.orderhub.dto.DiscountRequest;
 import com.orderhub.dto.DiscountValidationResponse;
 import com.orderhub.exception.BusinessRuleException;
 import com.orderhub.exception.ConflictException;
+import com.orderhub.exception.DiscountNotApplicableException;
+import com.orderhub.exception.DiscountNotApplicableException.Reason;
 import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.DiscountRepository;
 import com.orderhub.util.MoneyUtils;
@@ -48,31 +50,38 @@ public class DiscountService {
 
     private Discount resolve(String code, BigDecimal subtotal, boolean checkUsageLimit) {
         Discount discount = discountRepository.findByCodeIgnoreCase(code.trim())
-                .orElseThrow(() -> new BusinessRuleException("Unknown discount code: " + code));
+                .orElseThrow(() -> new DiscountNotApplicableException(code, Reason.UNKNOWN_CODE,
+                        "Unknown discount code: " + code));
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         if (!discount.isActive()) {
-            throw new BusinessRuleException("Discount " + code + " is no longer active");
+            throw new DiscountNotApplicableException(code, Reason.INACTIVE,
+                    "Discount " + code + " is no longer active");
         }
         if (discount.getValidFrom() != null && now.isBefore(discount.getValidFrom())) {
-            throw new BusinessRuleException("Discount " + code + " is not valid yet");
+            throw new DiscountNotApplicableException(code, Reason.NOT_YET_VALID,
+                    "Discount " + code + " is not valid yet");
         }
         if (discount.getValidUntil() != null && now.isAfter(discount.getValidUntil())) {
-            throw new BusinessRuleException("Discount " + code + " has expired");
+            throw new DiscountNotApplicableException(code, Reason.EXPIRED,
+                    "Discount " + code + " has expired");
         }
         if (checkUsageLimit && discount.getMaxUses() != null && discount.getUsedCount() >= discount.getMaxUses()) {
-            throw new BusinessRuleException("Discount " + code + " has reached its usage limit");
+            throw new DiscountNotApplicableException(code, Reason.USAGE_LIMIT_REACHED,
+                    "Discount " + code + " has reached its usage limit");
         }
         if (discount.getMinOrderAmount() != null && subtotal.compareTo(discount.getMinOrderAmount()) < 0) {
-            throw new BusinessRuleException("Order subtotal is below the minimum of " + discount.getMinOrderAmount()
-                    + " required for " + code);
+            throw new DiscountNotApplicableException(code, Reason.BELOW_MINIMUM_ORDER_AMOUNT,
+                    "Order subtotal is below the minimum of " + discount.getMinOrderAmount() + " required for " + code);
         }
         return discount;
     }
 
     public void markUsed(Discount discount) {
         if (discountRepository.incrementUsage(discount.getId()) == 0) {
-            throw new BusinessRuleException("Discount " + discount.getCode() + " has reached its usage limit");
+            log.warn("Discount {} ran out of uses before it could be counted for this order", discount.getCode());
+            throw new DiscountNotApplicableException(discount.getCode(), Reason.USAGE_LIMIT_REACHED,
+                    "Discount " + discount.getCode() + " has reached its usage limit");
         }
         log.debug("Discount {} marked as used", discount.getCode());
     }
@@ -83,7 +92,8 @@ public class DiscountService {
             Discount discount = findApplicable(code, subtotal);
             BigDecimal amount = discountCalculator.calculate(discount, subtotal);
             return new DiscountValidationResponse(discount.getCode(), true, amount, "Discount applied");
-        } catch (BusinessRuleException ex) {
+        } catch (DiscountNotApplicableException ex) {
+            log.info("Discount {} rejected for subtotal {}: {}", code, subtotal, ex.getReason());
             return new DiscountValidationResponse(code, false, BigDecimal.ZERO, ex.getMessage());
         }
     }
@@ -100,7 +110,9 @@ public class DiscountService {
         Discount discount = new Discount();
         apply(request, discount);
         discount.setUsedCount(0);
-        return discountRepository.save(discount);
+        Discount saved = discountRepository.save(discount);
+        log.info("Created discount {} ({})", saved.getCode(), saved.getId());
+        return saved;
     }
 
     public Discount update(Long id, DiscountRequest request) {
@@ -110,6 +122,7 @@ public class DiscountService {
             throw new ConflictException("Discount code " + normalize(request.code()) + " already exists");
         }
         apply(request, discount);
+        log.info("Updated discount {} ({})", discount.getCode(), id);
         return discount;
     }
 
