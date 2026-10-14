@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# a newer push to the same branch or PR cancels the run still in progress
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # setup-java also registers the JDK in ~/.m2/toolchains.xml, which the maven-toolchains-plugin needs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # unit tests plus the Testcontainers integration tests (the runner provides Docker for Postgres)
+      - name: Build and run tests
+        run: mvn -B -ntp verify
+
+      # integration tests skip themselves without Docker; fail instead of passing with them silently skipped
+      - name: Check no tests were skipped
+        run: |
+          skipped=$(grep -ho 'skipped="[0-9]*"' target/surefire-reports/TEST-*.xml | grep -o '[0-9]*' | paste -sd+ - | bc)
+          echo "Skipped tests: ${skipped}"
+          test "${skipped}" -eq 0
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 7
+
+  docker-image:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # build only, no push: catches a broken Dockerfile before it reaches deployment
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: orderhub:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
