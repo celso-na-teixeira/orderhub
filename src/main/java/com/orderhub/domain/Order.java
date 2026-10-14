@@ -69,6 +69,9 @@ public class Order {
     @Setter
     private String idempotencyKey;
 
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+
     @Version
     private Long version;
 
@@ -86,6 +89,11 @@ public class Order {
     @PreUpdate
     void onUpdate() {
         updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void markDelivered(LocalDateTime when) {
+        this.status = OrderStatus.DELIVERED;
+        this.deliveredAt = when;
     }
 
     public void addItem(OrderItem item) {
