@@ -8,7 +8,6 @@ import com.orderhub.service.InventoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/inventory")
@@ -35,13 +33,10 @@ public class InventoryController {
     }
 
     @PutMapping("/{productId}")
-    public ResponseEntity<?> adjust(@PathVariable Long productId,
+    public InventoryResponse adjust(@PathVariable Long productId,
                                     @Valid @RequestBody InventoryAdjustmentRequest request) {
-        if (request.reason() == null || request.reason().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "A reason is required for stock adjustments"));
-        }
-        return ResponseEntity.ok(inventoryMapper.toResponse(
-                inventoryService.adjust(productId, request.quantityOnHand(), request.reason())));
+        return inventoryMapper.toResponse(
+                inventoryService.adjust(productId, request.quantityOnHand(), request.reason()));
     }
 
     @GetMapping("/low-stock")

@@ -76,6 +76,6 @@ public ResponseEntity<Void> delete(@PathVariable Long id) {
 
 Errors do not go through the return type. Throw an exception (`ResourceNotFoundException`, `AccessDeniedException`, `BusinessRuleException`, ...) and `GlobalExceptionHandler` turns it into the error response. This is why a method never needs `ResponseEntity<?>` to return "either a DTO or an error".
 
-## Known deviations (as of 2026-10-12)
+## Known deviations (as of 2026-10-14)
 
-- `InventoryController` has one method that wraps its result in `ResponseEntity.ok(...)`, which is the same as returning the DTO directly.
+None currently. The last one (`InventoryController` wrapping its result in `ResponseEntity.ok(...)`) was fixed alongside the validation gap that caused it: the missing-reason check is now `@NotBlank` on `InventoryAdjustmentRequest`, handled the same way as every other validation failure.

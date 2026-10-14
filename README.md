@@ -14,7 +14,7 @@ Version 1.4 is the current internal release. Several teams have worked on the se
 4. [Authentication](#authentication)
 5. [API overview](#api-overview)
 6. [Business rules](#business-rules)
-7. [Features in progress](#features-in-progress)
+7. [Shipped features](#shipped-features)
 8. [Error handling contract](#error-handling-contract)
 9. [Testing](#testing)
 10. [Operations](#operations)
@@ -333,17 +333,19 @@ These rules describe how the system is **meant** to behave. If the code disagree
 
 ---
 
-## Features in progress
+## Shipped features
 
-| Ticket | Feature | Status |
+All tickets from the original backlog are done as of 2026-10-14.
+
+| Ticket | Feature | Notes |
 |---|---|---|
-| OH-231 | Refunds (BR-60 – BR-62) | Status change done, rest outstanding |
-| OH-240 | Product search: price range + case-insensitive name | Partially done |
-| OH-244 | Top products report | Endpoint stubbed |
-| OH-251 | Order history (audit trail) endpoint | Endpoint stubbed; events are being recorded |
-| OH-255 | Automatic reservation expiry (BR-31) | Job written, needs verification |
-| OH-262 | Edit order items (BR-25) | First version merged, QA reported problems |
-| OH-270 | Self-service profile update (BR-71) | Merged; security review pending |
+| OH-231 | Refunds (BR-60 – BR-62) | PAID refunds restock, DELIVERED refunds don't (goods go through inspection), 30-day window enforced on DELIVERED |
+| OH-240 | Product search: price range + case-insensitive name | Case-insensitive name match and independent min/max price filters |
+| OH-244 | Top products report | Ranked by revenue, counting only PAID/SHIPPED/DELIVERED orders (BR-80) |
+| OH-251 | Order history (audit trail) endpoint | `GET /orders/{id}/history`, scoped to the order's own customer |
+| OH-255 | Automatic reservation expiry (BR-31) | Releases stock and cancels the order, not just the reservation row; scheduling was previously never enabled |
+| OH-262 | Edit order items (BR-25) | Stock reservations reconciled by quantity delta; restricted to the order's own customer |
+| OH-270 | Self-service profile update (BR-71) | Changing email or password now requires the current password |
 
 ---
 

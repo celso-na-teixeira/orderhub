@@ -3,6 +3,7 @@ package com.orderhub.service;
 import com.orderhub.domain.User;
 import com.orderhub.dto.UpdateProfileRequest;
 import com.orderhub.exception.ResourceNotFoundException;
+import com.orderhub.exception.UnauthorizedException;
 import com.orderhub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +28,22 @@ public class UserService {
 
     public User updateProfile(Long userId, UpdateProfileRequest request) {
         User user = getById(userId);
-        if (request.email() != null && !request.email().isBlank()) {
+        boolean changingEmail = request.email() != null && !request.email().isBlank();
+        boolean changingPassword = request.newPassword() != null;
+
+        // BR-71: changing the login email or password requires the current password
+        if (changingEmail || changingPassword) {
+            if (request.currentPassword() == null
+                    || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+                log.warn("Rejected profile update for user {}: current password missing or incorrect", userId);
+                throw new UnauthorizedException("Current password is required to change your email or password");
+            }
+        }
+
+        if (changingEmail) {
             user.setEmail(request.email());
         }
-        if (request.newPassword() != null) {
+        if (changingPassword) {
             user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
             log.info("Password changed for user {}", userId);
         }
