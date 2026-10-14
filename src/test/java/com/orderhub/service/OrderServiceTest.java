@@ -5,6 +5,7 @@ import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
 import com.orderhub.domain.OrderStatus;
 import com.orderhub.domain.Product;
+import com.orderhub.domain.Reservation;
 import com.orderhub.domain.Role;
 import com.orderhub.domain.User;
 import com.orderhub.dto.CreateOrderRequest;
@@ -27,11 +28,15 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -291,6 +296,59 @@ class OrderServiceTest {
         assertThatThrownBy(() -> orderService.getOrder(10L, new AppUserDetails(user(2L, Role.STAFF))))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(orderAccessPolicy, never()).assertCanAccess(any(), any());
+    }
+
+    @Test
+    void expiringPendingOrderReleasesStockAndCancelsIt() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PENDING);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        orderService.expireOrder(10L);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(inventoryService).release(any(), eq(2));
+        verify(reservationService).expireForOrder(10L);
+        verify(auditService).record(eq("ORDER"), eq(10L), eq("EXPIRED"), eq("system"), any());
+    }
+
+    @Test
+    void expiringOrderThatWasPaidMeanwhileLeavesItAlone() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PAID);
+        order.addItem(new OrderItem(product("KIT-3002", "59.90"), 2, new BigDecimal("59.90")));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        orderService.expireOrder(10L);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        verify(inventoryService, never()).release(any(), anyInt());
+        verify(reservationService, never()).expireForOrder(any());
+    }
+
+    @Test
+    void expiringDeletedOrderReleasesWhatItsReservationsHeld() {
+        when(orderRepository.findById(10L)).thenReturn(Optional.empty());
+        when(reservationService.expireForOrder(10L)).thenReturn(List.of(
+                new Reservation(10L, 7L, 3, LocalDateTime.now(ZoneOffset.UTC).minusMinutes(1))));
+
+        orderService.expireOrder(10L);
+
+        verify(inventoryService).release(7L, 3);
+    }
+
+    @Test
+    void movingToDeliveredRecordsWhenItWasDelivered() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.SHIPPED);
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        orderService.updateStatus(10L, OrderStatus.DELIVERED, new AppUserDetails(user(2L, Role.STAFF)));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(order.getDeliveredAt())
+                .isCloseTo(LocalDateTime.now(ZoneOffset.UTC), within(5, ChronoUnit.SECONDS));
     }
 
     private static User user(Long id, Role role) {

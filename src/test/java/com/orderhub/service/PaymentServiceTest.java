@@ -108,6 +108,17 @@ class PaymentServiceTest {
 
     }
 
+    @Test
+    void rejectsPaymentOnceTheReservationHasExpired() {
+        when(reservationService.hasExpiredReservation(any())).thenReturn(true);
+        PaymentRequest request = new PaymentRequest(new BigDecimal("59.90"), "tok_visa");
+
+        assertThatThrownBy(() -> paymentService.pay(3L, request, staff))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("expired");
+        verify(paymentGateway, never()).charge(anyString(), any(), anyString());
+    }
+
     @Test 
     void paysPendingOrder(){
         PaymentRequest request = new PaymentRequest(new BigDecimal("59.90"), "tok_visa");

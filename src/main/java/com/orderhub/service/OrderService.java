@@ -6,6 +6,7 @@ import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
 import com.orderhub.domain.OrderStatus;
 import com.orderhub.domain.Product;
+import com.orderhub.domain.Reservation;
 import com.orderhub.dto.AuditEventResponse;
 import com.orderhub.dto.CreateOrderRequest;
 import com.orderhub.dto.OrderLineRequest;
@@ -24,6 +25,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -166,6 +169,37 @@ public class OrderService {
         return order;
     }
 
+    /**
+     * Cancels a pending order whose reservation has run out and puts its stock back up for sale (BR-31).
+     * Runs in its own transaction per order, so one failure does not hold up the others.
+     */
+    public void expireOrder(Long orderId) {
+        Optional<Order> found = orderRepository.findById(orderId);
+        if (found.isEmpty()) {
+            // the order was deleted while still holding stock: free what its reservations were holding
+            reservationService.expireForOrder(orderId).stream()
+                    .sorted(Comparator.comparing(Reservation::getProductId))
+                    .forEach(r -> inventoryService.release(r.getProductId(), r.getQuantity()));
+            log.info("Expired reservations of deleted order {}", orderId);
+            return;
+        }
+
+        Order order = found.get();
+        if (order.getStatus() != OrderStatus.PENDING) {
+            // paid or cancelled in the meantime; its reservations were converted or released along with it
+            return;
+        }
+
+        for (OrderItem item : inProductOrder(order)) {
+            inventoryService.release(item.getProduct().getId(), item.getQuantity());
+        }
+        reservationService.expireForOrder(orderId);
+
+        order.setStatus(OrderStatus.CANCELLED);
+        auditService.record("ORDER", orderId, "EXPIRED", "system", order);
+        log.info("Order {} cancelled: reservation expired", order.getOrderNumber());
+    }
+
     public Order updateStatus(Long orderId, OrderStatus newStatus, AppUserDetails currentUser) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
@@ -173,7 +207,12 @@ public class OrderService {
         if (!previous.canTransitionTo(newStatus)) {
             throw new InvalidOrderStateException(orderId, previous, newStatus);
         }
-        order.setStatus(newStatus);
+        if (newStatus == OrderStatus.DELIVERED) {
+            // the refund window for delivered orders starts here (BR-60)
+            order.markDelivered(LocalDateTime.now(ZoneOffset.UTC));
+        } else {
+            order.setStatus(newStatus);
+        }
         auditService.record("ORDER", orderId, "STATUS_CHANGED", currentUser.getUsername(), order);
         log.info("Order {} moved {} -> {}", order.getOrderNumber(), previous, newStatus);
         return order;

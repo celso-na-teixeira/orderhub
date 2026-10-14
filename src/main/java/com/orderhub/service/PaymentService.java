@@ -50,6 +50,10 @@ public class PaymentService {
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new BusinessRuleException("Order " + order.getOrderNumber() + " cannot be paid while " + order.getStatus());
         }
+        // the expiry job may not have run yet, so the reservations themselves are checked (BR-32)
+        if (reservationService.hasExpiredReservation(order.getId())) {
+            throw new BusinessRuleException("Order " + order.getOrderNumber() + " cannot be paid: its reservation has expired");
+        }
         if (!request.amount().equals(order.getTotal())) {
             throw new BusinessRuleException("Payment amount " + request.amount()
                     + " does not match order total " + order.getTotal());

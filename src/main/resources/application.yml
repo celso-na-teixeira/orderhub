@@ -49,7 +49,7 @@ app:
     secret: ${JWT_SECRET:orderhub-dev-secret-key-change-me-please-0123456789}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   reservation:
-    time-to-live: 15m
+    ttl: 15m
     cleanup-interval-ms: 60000
   reporting:
     low-stock-threshold: 5

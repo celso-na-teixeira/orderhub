@@ -50,14 +50,13 @@ class ReservationServiceTest {
     }
 
     @Test
-    void staleReservationsAreExpired() {
-        Reservation stale = new Reservation(1L, 12L, 2, LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5));
+    void ordersWithStaleReservationsAreFoundOncePerOrder() {
+        LocalDateTime past = LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5);
         when(reservationRepository.findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), any()))
-                .thenReturn(List.of(stale));
+                .thenReturn(List.of(new Reservation(1L, 12L, 2, past), new Reservation(1L, 13L, 1, past),
+                        new Reservation(2L, 12L, 1, past)));
 
-        reservationService.expireStaleReservations();
-
-        assertThat(stale.getStatus()).isEqualTo(ReservationStatus.EXPIRED);
+        assertThat(reservationService.findOrdersWithStaleReservations()).containsExactly(1L, 2L);
     }
 
     @Test
@@ -66,8 +65,33 @@ class ReservationServiceTest {
         when(reservationRepository.findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), cutoff.capture()))
                 .thenReturn(List.of());
 
-        reservationService.expireStaleReservations();
+        reservationService.findOrdersWithStaleReservations();
 
         assertThat(cutoff.getValue()).isCloseTo(LocalDateTime.now(ZoneOffset.UTC), within(5, ChronoUnit.SECONDS));
+    }
+
+    @Test
+    void expiringForOrderMarksActiveReservationsExpired() {
+        Reservation active = new Reservation(1L, 12L, 2, LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5));
+        when(reservationRepository.findByOrderIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(List.of(active));
+
+        assertThat(reservationService.expireForOrder(1L)).containsExactly(active);
+        assertThat(active.getStatus()).isEqualTo(ReservationStatus.EXPIRED);
+    }
+
+    @Test
+    void orderWithActiveReservationPastItsTtlCountsAsExpired() {
+        when(reservationRepository.findByOrderId(1L)).thenReturn(List.of(
+                new Reservation(1L, 12L, 2, LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1))));
+
+        assertThat(reservationService.hasExpiredReservation(1L)).isTrue();
+    }
+
+    @Test
+    void orderWithLiveReservationIsNotExpired() {
+        when(reservationRepository.findByOrderId(1L)).thenReturn(List.of(
+                new Reservation(1L, 12L, 2, LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10))));
+
+        assertThat(reservationService.hasExpiredReservation(1L)).isFalse();
     }
 }
