@@ -18,6 +18,8 @@ services:
 
   app:
     build: .
+    # CI builds the image first and starts it with --no-build under this tag
+    image: ${ORDERHUB_IMAGE:-orderhub:local}
     container_name: orderhub-app
     profiles: ["full"]
     depends_on:

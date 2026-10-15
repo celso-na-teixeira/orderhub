@@ -384,6 +384,13 @@ mvn test -Dtest='*ServiceTest' # unit tests only
 
 * Unit tests use JUnit 5, Mockito and AssertJ.
 * The integration tests (`integration/`, `repository/`) start PostgreSQL through Testcontainers and run the real Flyway migrations and seed data.
+* `scripts/smoke-test.sh` checks the Docker image, which runs with the `prod` profile. It checks the probes, the metrics, that actuator is not served on the API port, and that every log line is JSON. CI runs it after building the image. To run it locally:
+
+  ```bash
+  docker compose --profile full up -d --build
+  scripts/smoke-test.sh
+  docker compose --profile full down -v
+  ```
 
 ---
 
