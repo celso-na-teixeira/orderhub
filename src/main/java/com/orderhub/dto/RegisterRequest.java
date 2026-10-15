@@ -11,4 +11,9 @@ public record RegisterRequest(
         @NotBlank @Size(max = 150) String name,
         Role role
 ) {
+
+    @Override
+    public String toString() {
+        return "RegisterRequest[email=" + email + ", password=***, name=" + name + ", role=" + role + "]";
+    }
 }

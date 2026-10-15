@@ -8,5 +8,6 @@ RUN mvn -q -B package -DskipTests
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /workspace/target/orderhub-*.jar app.jar
-EXPOSE 8080
+# 8080 serves the API, 8081 the actuator (probes and metrics; not to be exposed publicly)
+EXPOSE 8080 8081
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

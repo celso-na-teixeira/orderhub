@@ -10,6 +10,7 @@ import com.orderhub.exception.ResourceNotFoundException;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.repository.PaymentRepository;
 import com.orderhub.security.CurrentUser;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class RefundService {
     private final PaymentRepository paymentRepository;
     private final InventoryService inventoryService;
     private final AuditService auditService;
+    private final MeterRegistry meterRegistry;
 
     public Order refund(Long orderId, String reason) {
         Order order = orderRepository.findById(orderId)
@@ -58,6 +60,7 @@ public class RefundService {
         paymentRepository.save(new Payment(order, order.getTotal(), PaymentStatus.REFUNDED, null));
         log.info("Order {} refunded. Reason: {}", order.getOrderNumber(), reason);
         auditService.record("ORDER", orderId, "REFUNDED", CurrentUser.emailOrSystem(), reason);
+        meterRegistry.counter("orderhub.orders.refunded").increment();
         return order;
     }
 

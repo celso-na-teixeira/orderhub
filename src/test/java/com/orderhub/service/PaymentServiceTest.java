@@ -1,5 +1,6 @@
 package com.orderhub.service;
 
+import io.micrometer.observation.ObservationRegistry;
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -60,6 +62,9 @@ class PaymentServiceTest {
     private OrderMapper orderMapper;
     @Mock
     private OrderAccessPolicy orderAccessPolicy;
+
+    @Spy
+    private ObservationRegistry observationRegistry = ObservationRegistry.create();
 
     @InjectMocks
     private PaymentService paymentService;

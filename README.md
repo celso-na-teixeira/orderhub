@@ -60,12 +60,12 @@ The application is a single Spring Boot service (a modular monolith) that stores
 HTTP ─▶ Controllers ─▶ Services ─▶ Repositories (Spring Data JPA) ─▶ PostgreSQL
             │              │
          Mappers /      Domain entities, PaymentGateway (PSP adapter),
-         DTOs           AuditService (async), ReservationService (scheduled clean-up)
+         DTOs           AuditService, ReservationService (scheduled clean-up)
 ```
 
 ```
 com.orderhub
-├── config        async executor, OpenAPI, request-id filter, typed properties
+├── config        OpenAPI, request-id filter, scheduling, typed properties
 ├── controller    REST endpoints
 ├── domain        JPA entities and enums
 ├── dto           request/response records
@@ -389,7 +389,28 @@ mvn test -Dtest='*ServiceTest' # unit tests only
 
 ## Operations
 
-* Health: `GET /actuator/health`
-* Every response carries an `X-Request-Id` header. The same id appears in the log lines for that request.
+* **Management port.** Actuator runs on port `8081` (`MANAGEMENT_PORT`), separate from the API on `8080`. Keep it off the load balancer; only probes and the metrics scraper inside the cluster should reach it. It exposes:
+  * `GET /actuator/health/liveness` and `GET /actuator/health/readiness` for the Kubernetes probes. Readiness also checks the database.
+  * `GET /actuator/prometheus` for metrics scraping.
+  * `GET /actuator/info`.
+
+  No other endpoints are exposed. Health responses never include component details.
+* **Logs.** Locally, logs are plain text. With the `prod` profile, each line is a JSON object in [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html) format, and carries `service.name`, `service.version`, `service.environment` (`DEPLOY_ENV`) and `service.node.name` (the pod's `HOSTNAME`).
+* **Correlation.** Each log line written during a request carries:
+  * `traceId` and `spanId` from the W3C `traceparent` header, or newly generated ones.
+  * `requestId` from `X-Request-Id`, which every response also returns. A caller-supplied request id is kept only if it has at most 64 characters and contains only letters, digits, `.`, `_` and `-`.
+
+  Scheduled jobs get their own trace ids.
+* **Traces.** Traces cover the HTTP request, every JDBC query and the PSP charge (`orderhub.psp.charge`). They are exported over OTLP/HTTP only when `MANAGEMENT_OTLP_TRACING_ENDPOINT` is set (for example `http://otel-collector:4318/v1/traces`). Production samples 10% of traces (`TRACING_SAMPLING_PROBABILITY`). Bound SQL parameters are never recorded.
+* **Metrics.** Besides the standard HTTP, JVM, Hikari and JDBC metrics, every metric carries `application="orderhub"`. The service also publishes these:
+
+  | Metric | Meaning |
+  |---|---|
+  | `orderhub_orders_placed_total` | Orders created. Idempotent replays are not counted. |
+  | `orderhub_orders_expired_total` | Pending orders cancelled because their reservation expired. |
+  | `orderhub_orders_expiry_failures_total` | Expiry attempts that failed and will be retried. A rate that stays above zero means some orders are stuck. |
+  | `orderhub_orders_refunded_total` | Refunds issued. |
+  | `orderhub_psp_charge_seconds{outcome}` | PSP latency and call count, by `approved`, `declined` or `error`. |
+* **Audit.** Audit events are written in the same transaction as the change they describe. A change is therefore never stored without its audit event, and the reverse is also true. If the audit write fails, the change fails too.
 * Payments are processed by `FakePaymentGateway`, which adds ~400 ms of simulated latency.
 * In production the service runs as **3 replicas** behind a load balancer. Containers use the `Europe/Dublin` time zone.

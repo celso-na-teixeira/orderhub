@@ -38,9 +38,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
+                        // probes and scrapes cannot send a JWT; they reach the management port only from inside the cluster
+                        .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/actuator/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                        .requestMatchers("/api/reports/**").hasRole("ADMIN")
+                        .requestMatchers("/api/reports/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/discounts").hasAuthority("ADMIN")
                         .requestMatchers("/api/inventory/**").hasAnyAuthority("ADMIN", "STAFF")
                         .anyRequest().authenticated())

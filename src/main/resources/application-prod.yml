@@ -12,7 +12,21 @@ app:
     # 30 days - mobile clients complained about being logged out too often
     expiration-minutes: 43200
 
+management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
 logging:
+  # one JSON object per line in Elastic Common Schema, with traceId, spanId and requestId from the MDC
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        version: @project.version@
+        environment: ${DEPLOY_ENV:production}
+        node-name: ${HOSTNAME:}
   level:
     root: INFO
     com.orderhub: INFO

@@ -30,13 +30,30 @@ server:
   port: 8080
 
 management:
+  # actuator listens on its own port, which is scraped and probed inside the cluster and not routed by the load balancer
+  server:
+    port: ${MANAGEMENT_PORT:8081}
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,info,prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: never
+      # /actuator/health/liveness and /actuator/health/readiness; readiness also fails while the database is down
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    # every request is traced locally; production samples (see application-prod.yml).
+    # Spans are exported over OTLP only when MANAGEMENT_OTLP_TRACING_ENDPOINT is set.
+    sampling:
+      probability: 1.0
 
 springdoc:
   swagger-ui:
@@ -55,8 +72,9 @@ app:
     low-stock-threshold: 5
 
 logging:
+  # human readable locally; production logs ECS JSON instead (see application-prod.yml)
   pattern:
-    console: "%d{HH:mm:ss.SSS} %-5level [%thread] [%X{requestId:-}] %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] [%X{traceId:-},%X{requestId:-}] %logger{36} - %msg%n"
   level:
     root: INFO
     com.orderhub: DEBUG

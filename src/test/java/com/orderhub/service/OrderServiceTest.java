@@ -1,5 +1,7 @@
 package com.orderhub.service;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -69,6 +72,9 @@ class OrderServiceTest {
     @Mock
     private OrderAccessPolicy orderAccessPolicy;
 
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     @InjectMocks
     private OrderService orderService;
 
@@ -91,6 +97,7 @@ class OrderServiceTest {
         assertThat(result.getItems()).hasSize(2);
         verify(orderRepository).save(any());
         verify(inventoryService, times(2)).reserve(anyLong(), anyInt());
+        assertThat(meterRegistry.counter("orderhub.orders.placed").count()).isEqualTo(1);
     }
 
     @Test

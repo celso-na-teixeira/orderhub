@@ -1,5 +1,7 @@
 package com.orderhub.service;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.orderhub.domain.Customer;
 import com.orderhub.domain.Order;
 import com.orderhub.domain.OrderItem;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -45,6 +48,9 @@ class RefundServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     @InjectMocks
     private RefundService refundService;
 
@@ -72,6 +78,7 @@ class RefundServiceTest {
         ArgumentCaptor<Payment> saved = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(meterRegistry.counter("orderhub.orders.refunded").count()).isEqualTo(1);
     }
 
     @Test

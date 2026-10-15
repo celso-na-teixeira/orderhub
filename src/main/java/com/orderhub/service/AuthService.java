@@ -30,7 +30,6 @@ public class AuthService {
     private final JwtService jwtService;
 
     public AuthResponse register(RegisterRequest request) {
-        log.info("Registering new user: {}", request);
         if (userRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email already registered");
         }
@@ -43,6 +42,7 @@ public class AuthService {
         userRepository.save(user);
 
         customerRepository.save(new Customer(user, request.name(), request.email()));
+        log.info("Registered user {} with role {}", user.getId(), user.getRole());
 
         return AuthResponse.bearer(jwtService.generateToken(user), user.getEmail(), user.getRole().name());
     }
@@ -53,11 +53,11 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("No account found for " + request.email()));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            log.warn("Failed login for {}", request.email());
+            log.warn("Failed login for user {}", user.getId());
             throw new UnauthorizedException("Invalid password");
         }
 
-        log.info("User {} logged in", user.getEmail());
+        log.info("User {} logged in", user.getId());
         return AuthResponse.bearer(jwtService.generateToken(user), user.getEmail(), user.getRole().name());
     }
 }

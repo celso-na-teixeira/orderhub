@@ -14,6 +14,8 @@ import com.orderhub.mapper.OrderMapper;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.repository.PaymentRepository;
 import com.orderhub.security.AppUserDetails;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class PaymentService {
     private final AuditService auditService;
     private final OrderMapper orderMapper;
     private final OrderAccessPolicy orderAccessPolicy;
+    private final ObservationRegistry observationRegistry;
 
     /**
      * The payment record, the stock commitment and the status change are written in one transaction (BR-43).
@@ -60,8 +63,7 @@ public class PaymentService {
         }
 
         log.info("Charging {} for order {}", request.amount(), order.getOrderNumber());
-        PaymentGateway.GatewayResult result =
-                paymentGateway.charge(order.getOrderNumber(), request.amount(), request.cardToken());
+        PaymentGateway.GatewayResult result = charge(order, request);
 
         Payment payment = new Payment(order, request.amount(),
                 result.success() ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
@@ -75,6 +77,29 @@ public class PaymentService {
         completeOrder(order);
         auditService.record("ORDER", order.getId(), "PAID", currentUser.getUsername(), order);
         return orderMapper.toPaymentResponse(payment);
+    }
+
+    /**
+     * Calls the PSP inside an observation, which records a span and the {@code orderhub.psp.charge} timer
+     * tagged with the outcome: approved, declined or error.
+     */
+    private PaymentGateway.GatewayResult charge(Order order, PaymentRequest request) {
+        Observation observation = Observation.createNotStarted("orderhub.psp.charge", observationRegistry)
+                .contextualName("psp charge")
+                .highCardinalityKeyValue("order.number", order.getOrderNumber())
+                .start();
+        try (Observation.Scope scope = observation.openScope()) {
+            PaymentGateway.GatewayResult result =
+                    paymentGateway.charge(order.getOrderNumber(), request.amount(), request.cardToken());
+            observation.lowCardinalityKeyValue("outcome", result.success() ? "approved" : "declined");
+            return result;
+        } catch (RuntimeException ex) {
+            observation.lowCardinalityKeyValue("outcome", "error");
+            observation.error(ex);
+            throw ex;
+        } finally {
+            observation.stop();
+        }
     }
 
     private void completeOrder(Order order) {

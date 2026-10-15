@@ -17,6 +17,7 @@ import com.orderhub.repository.CustomerRepository;
 import com.orderhub.repository.OrderRepository;
 import com.orderhub.security.AppUserDetails;
 import com.orderhub.util.OrderNumberGenerator;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -52,6 +53,7 @@ public class OrderService {
     private final AuditService auditService;
     private final OrderNumberGenerator orderNumberGenerator;
     private final OrderAccessPolicy orderAccessPolicy;
+    private final MeterRegistry meterRegistry;
 
     public Order placeOrder(Long userId, CreateOrderRequest request, String idempotencyKey) {
         boolean idempotent = idempotencyKey != null && !idempotencyKey.isBlank();
@@ -95,6 +97,7 @@ public class OrderService {
 
         auditService.record("ORDER", saved.getId(), "CREATED", customer.getEmail(), saved);
         log.info("Order {} placed by customer {} (total {})", saved.getOrderNumber(), customer.getId(), saved.getTotal());
+        meterRegistry.counter("orderhub.orders.placed").increment();
         return saved;
     }
 
